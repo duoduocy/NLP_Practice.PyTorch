@@ -40,7 +40,7 @@ p.dump(word_to_ix, file('wordDic', 'w'))
 
 model = PoetryModel(len(word_to_ix), 256, 256);
 model.cuda()  # running on GPU,if you want to run it on CPU,delete all .cuda() usage.
-optimizer = optim.RMSprop(model.parameters(), lr=0.01, weight_decay=0.0001)
+optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=0.0001)
 criterion = nn.NLLLoss()
 
 one_hot_var_target = {}
@@ -51,6 +51,7 @@ epochNum = 100
 TRAINSIZE = len(data)
 batch = 200
 def test():
+    model.eval()
     v = int(TRAINSIZE / batch)
     loss = 0
     counts = 0
@@ -65,6 +66,7 @@ def test():
     print "=====",loss.data[0]
 print "start training"
 for epoch in range(epochNum):
+    model.train()
     for batchIndex in range(int(TRAINSIZE / batch)):
         model.zero_grad()
         loss = 0
