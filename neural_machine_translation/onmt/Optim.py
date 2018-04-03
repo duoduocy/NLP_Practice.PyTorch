@@ -69,4 +69,4 @@ class Optim(object):
             print("Decaying learning rate to %g" % self.lr)
 
         self.last_ppl = ppl
-        self.optimizer.param_groups[0]['lr'] = self.lrZ
+        self.optimizer.param_groups[0]['lr'] = self.lr

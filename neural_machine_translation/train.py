@@ -1,5 +1,6 @@
 from __future__ import division
 import evaluation
+import h5py
 import onmt
 import onmt.Markdown
 import onmt.Models
@@ -16,8 +17,10 @@ parser = argparse.ArgumentParser(description='train.py')
 onmt.Markdown.add_md_help_argument(parser)
 
 # Data options
-
-parser.add_argument('-data', required=True,
+parser.add_argument('-dict', default='data/aic_mt/nmt_t2t_data_all/nmt_all_0303.dicts.pt')
+parser.add_argument('-data_type', type=str, default='h5',
+                    help='File format for the preprocessed data')
+parser.add_argument('-data', default='data/aic_mt/nmt_t2t_data_all/nmt_all_0303.train.h5',
                     help='Path to the *-train.pt file from preprocess.py')
 parser.add_argument('-save_model', default='model',
                     help="""Model filename (the model will be saved as
@@ -175,7 +178,7 @@ parser.add_argument('-pre_word_vecs_dec',
                     See README for specific formatting instructions.""")
 
 # GPU
-parser.add_argument('-gpus', default=[], nargs='+', type=int,
+parser.add_argument('-gpus', default=[0], nargs='+', type=int,
                     help="Use CUDA on the listed devices.")
 
 parser.add_argument('-log_interval', type=int, default=50,
@@ -231,13 +234,13 @@ def eval(model, criterion, data, fert_dict):
     return stats
 
 
-def trainModel(model, trainData, validData, dataset, optim, fert_dict, fert_sents):
+def trainModel(model, trainData, validData, dataset, dicts, optim, fert_dict, fert_sents):
     print(model)
     model.train()
 
     # Define criterion of each GPU.
     if not opt.copy_attn:
-        criterion = onmt.Loss.NMTCriterion(dataset['dicts']['tgt'].size(), opt)
+        criterion = onmt.Loss.NMTCriterion(dicts['tgt'].size(), opt)
     else:
         criterion = onmt.modules.CopyCriterion
 
@@ -341,41 +344,55 @@ def trainModel(model, trainData, validData, dataset, optim, fert_dict, fert_sent
 
 def main():
     print("Loading data from '%s'" % opt.data)
-
-    dataset = torch.load(opt.data, map_location=lambda storage, loc: storage)
     dict_checkpoint = (opt.train_from if opt.train_from
                        else opt.train_from_state_dict)
-    if dict_checkpoint:
-        print('Loading dicts from checkpoint at %s' % dict_checkpoint)
-        checkpoint = torch.load(dict_checkpoint, map_location=lambda storage, loc: storage)
-        dataset['dicts'] = checkpoint['dicts']
 
-    trainData = onmt.Dataset(dataset['train']['src'],
-                             dataset['train']['tgt'], opt.batch_size, opt.gpus,
-                             data_type=dataset.get("type", "text"),
-                             srcFeatures=dataset['train'].get('src_features'),
-                             tgtFeatures=dataset['train'].get('tgt_features'),
-                             alignment=dataset['train'].get('alignments'))
-    validData = onmt.Dataset(dataset['valid']['src'],
-                             dataset['valid']['tgt'], opt.batch_size, opt.gpus,
-                             volatile=True,
-                             data_type=dataset.get("type", "text"),
-                             srcFeatures=dataset['valid'].get('src_features'),
-                             tgtFeatures=dataset['valid'].get('tgt_features'),
-                             alignment=dataset['valid'].get('alignments'))
+    if opt.data_type == 'h5':
+        #alignments = torch.load(opt.input_align)
+        alignments = None
+        dicts = torch.load(opt.dict)['dicts']
+        dataset = h5py.File(opt.data)
+        trainData = onmt.Dataset_h5(dataset, 'train', opt.batch_size, opt.gpus,
+                                    data_type="text", srcFeatures=None, tgtFeatures=None,
+                                    alignment=alignments['train'] if alignments else None)
+        validData = onmt.Dataset_h5(dataset, 'valid', opt.batch_size, opt.gpus,
+                                    volatile=True,
+                                    data_type="text", srcFeatures=None, tgtFeatures=None,
+                                    alignment=alignments['valid'] if alignments else None)
+        print(' ***************************************************')
+        print(' *** vocabulary size. source = %d; target = %d' % (dicts['src'].size(), dicts['tgt'].size()))
+        print(' *** number of training sentences. %d' % dataset['train_src_label'].shape[0])
+        print(' *** maximum batch size. %d' % opt.batch_size)
+        print(' *** maximum number of batch size. %d ' % len(trainData))
+    else:
+        dataset = torch.load(opt.data, map_location=lambda storage, loc: storage)
+        if dict_checkpoint:
+            print('Loading dicts from checkpoint at %s' % dict_checkpoint)
+            checkpoint = torch.load(dict_checkpoint, map_location=lambda storage, loc: storage)
+            dataset['dicts'] = checkpoint['dicts']
+        trainData = onmt.Dataset(dataset['train']['src'],
+                                 dataset['train']['tgt'], opt.batch_size, opt.gpus,
+                                 data_type=dataset.get("type", "text"),
+                                 srcFeatures=dataset['train'].get('src_features'),
+                                 tgtFeatures=dataset['train'].get('tgt_features'),
+                                 alignment=dataset['train'].get('alignments'))
+        validData = onmt.Dataset(dataset['valid']['src'],
+                                 dataset['valid']['tgt'], opt.batch_size, opt.gpus,
+                                 volatile=True,
+                                 data_type=dataset.get("type", "text"),
+                                 srcFeatures=dataset['valid'].get('src_features'),
+                                 tgtFeatures=dataset['valid'].get('tgt_features'),
+                                 alignment=dataset['valid'].get('alignments'))
+        dicts = dataset['dicts']
+        print(' ***************************************************')
+        print(' *** vocabulary size. source = %d; target = %d' % (dicts['src'].size(), dicts['tgt'].size()))
+        print(' *** number of training sentences. %d' % len(dataset['train']['src']))
+        print(' *** maximum batch size. %d' % opt.batch_size)
 
-    dicts = dataset['dicts']
-    print(' * vocabulary size. source = %d; target = %d' %
-          (dicts['src'].size(), dicts['tgt'].size()))
     if 'src_features' in dicts:
         for j in range(len(dicts['src_features'])):
             print(' * src feature %d size = %d' %
                   (j, dicts['src_features'][j].size()))
-
-    dicts = dataset['dicts']
-    print(' * number of training sentences. %d' %
-          len(dataset['train']['src']))
-    print(' * maximum batch size. %d' % opt.batch_size)
 
     print('Building model...')
 
@@ -477,7 +494,7 @@ def main():
 
     nParams = sum([p.nelement() for p in model.parameters()])
     print('* number of parameters: %d' % nParams)
-    trainModel(model, trainData, validData, dataset, optim, fert_dict, fert_sents)
+    trainModel(model, trainData, validData, dataset, dicts, optim, fert_dict, fert_sents)
 
 if __name__ == "__main__":
     main()
