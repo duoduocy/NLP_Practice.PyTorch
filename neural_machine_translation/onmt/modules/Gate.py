@@ -1,9 +1,16 @@
+"""
+Context gate is a decoder module that takes as input the previous word
+embedding, the current decoder state and the attention state, and produces a
+gate.
+The gate can be used to select the input from the target side context
+(decoder state), from the source context (attention state) or both.
+"""
 import torch
 import torch.nn as nn
 
 
-def context_gate_factory(type, embeddings_size, decoder_size,
-                         attention_size, output_size):
+def ContextGateFactory(type, embeddings_size, decoder_size,
+                       attention_size, output_size):
     """Returns the correct ContextGate class"""
 
     gate_types = {'source': SourceContextGate,
@@ -16,13 +23,8 @@ def context_gate_factory(type, embeddings_size, decoder_size,
 
 
 class ContextGate(nn.Module):
-    """
-    Context gate is a decoder module that takes as input the previous word
-    embedding, the current decoder state and the attention state, and
-    produces a gate.
-    The gate can be used to select the input from the target side context
-    (decoder state), from the source context (attention state) or both.
-    """
+    """Implement up to the computation of the gate"""
+
     def __init__(self, embeddings_size, decoder_size,
                  attention_size, output_size):
         super(ContextGate, self).__init__()

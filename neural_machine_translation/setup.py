@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-from setuptools import setup
+from distutils.core import setup
 
-setup(name='OpenNMT-py',
-      description='A python implementation of OpenNMT',
+setup(name='OpenNMT',
       version='0.1',
-      packages=['onmt', 'onmt.io', 'onmt.translate', 'onmt.modules'])
+      description='OpenNMT',
+      packages=['onmt', 'onmt.modules'])

@@ -1,157 +1,96 @@
 import torch
 import torch.nn as nn
-
-from onmt.modules.UtilClass import BottleLinear
-from onmt.Utils import aeq, sequence_mask
-
+from torch.autograd import Variable
+from onmt.modules.Util import BottleLinear
+from onmt.modules import aeq
+from onmt.modules.activations import Softmax, Sparsemax, ConstrainedSoftmax, \
+    ConstrainedSparsemax
+import pdb
+import numpy as np
 
 class GlobalAttention(nn.Module):
     """
+    Luong Attention.
+
     Global attention takes a matrix and a query vector. It
     then computes a parameterized convex combination of the matrix
     based on the input query.
 
-    Constructs a unit mapping a query `q` of size `dim`
-    and a source matrix `H` of size `n x dim`, to an output
-    of size `dim`.
 
+        H_1 H_2 H_3 ... H_n
+          q   q   q       q
+            |  |   |       |
+              \ |   |      /
+                      .....
+                  \   |  /
+                      a
 
-    .. mermaid::
+    Constructs a unit mapping.
+    $$(H_1 + H_n, q) => (a)$$
+    Where H is of `batch x n x dim` and q is of `batch x dim`.
 
-       graph BT
-          A[Query]
-          subgraph RNN
-            C[H 1]
-            D[H 2]
-            E[H N]
-          end
-          F[Attn]
-          G[Output]
-          A --> F
-          C --> F
-          D --> F
-          E --> F
-          C -.-> G
-          D -.-> G
-          E -.-> G
-          F --> G
+    Loung Attention (dotprod):
+    $$\tanh(W_2 [(softmax((W_1 q + b_1) H) H), q] + b_2)$$.:
 
-    All models compute the output as
-    :math:`c = \sum_{j=1}^{SeqLength} a_j H_j` where
-    :math:`a_j` is the softmax of a score function.
-    Then then apply a projection layer to [q, c].
-
-    However they
-    differ on how they compute the attention score.
-
-    * Luong Attention (dot, general):
-       * dot: :math:`score(H_j,q) = H_j^T q`
-       * general: :math:`score(H_j, q) = H_j^T W_a q`
-
-
-    * Bahdanau Attention (mlp):
-       * :math:`score(H_j, q) = v_a^T tanh(W_a q + U_a h_j)`
-
-
-    Args:
-       dim (int): dimensionality of query and key
-       coverage (bool): use coverage term
-       attn_type (str): type of attention to use, options [dot,general,mlp]
+    Bahdanau Attention (mlp):
+    $$c = \sum_{j=1}^{SeqLength}\a_jh_j$$.
+    The Alignment-function $$a$$ computes an alignment as:
+    $$a_j = softmax(v_a^T \tanh(W_a q + U_a h_j) )$$.
 
     """
-    def __init__(self, dim, coverage=False, attn_type="dot"):
+    def __init__(self, dim, coverage=False, attn_type="dotprod",
+                 attn_transform="softmax", c_attn=0.0):
         super(GlobalAttention, self).__init__()
 
         self.dim = dim
         self.attn_type = attn_type
-        assert (self.attn_type in ["dot", "general", "mlp"]), (
+        assert (self.attn_type in ["dotprod", "mlp"]), (
                 "Please select a valid attention type.")
 
-        if self.attn_type == "general":
+        if self.attn_type == "dotprod":
             self.linear_in = nn.Linear(dim, dim, bias=False)
+            self.linear_out = nn.Linear(dim*2, dim, bias=False)
         elif self.attn_type == "mlp":
             self.linear_context = BottleLinear(dim, dim, bias=False)
-            self.linear_query = nn.Linear(dim, dim, bias=True)
+            self.linear_query = nn.Linear(dim, dim, bias=False)
             self.v = BottleLinear(dim, 1, bias=False)
-        # mlp wants it with bias
-        out_bias = self.attn_type == "mlp"
-        self.linear_out = nn.Linear(dim*2, dim, bias=out_bias)
-
-        self.sm = nn.Softmax()
+            # Modify initialization of self.v to have high variance
+            # self.v.weight.data.normal_(0, 1000)
+        if attn_transform == 'softmax':
+            self.sm = nn.Softmax()
+        elif attn_transform == 'sparsemax':
+            self.sm = Sparsemax()
+        elif attn_transform == 'constrained_softmax':
+            self.sm = ConstrainedSoftmax()
+        elif attn_transform == 'constrained_sparsemax':
+            self.sm = ConstrainedSparsemax()
+        else:
+            raise NotImplementedError
+        self.attn_transform = attn_transform
+        
         self.tanh = nn.Tanh()
+        self.mask = None
+        self.c_attn = c_attn
 
         if coverage:
             self.linear_cover = nn.Linear(1, dim, bias=False)
 
-    def score(self, h_t, h_s):
+    def applyMaskNone(self):
+        self.mask = None
+
+    def applyMask(self, mask):
+        self.mask = mask
+
+    def forward(self, input, context, coverage=None, upper_bounds=None):
         """
-        Args:
-          h_t (`FloatTensor`): sequence of queries `[batch x tgt_len x dim]`
-          h_s (`FloatTensor`): sequence of sources `[batch x src_len x dim]`
-
-        Returns:
-          :obj:`FloatTensor`:
-           raw attention scores (unnormalized) for each src index
-          `[batch x tgt_len x src_len]`
-
+        input (FloatTensor): batch x dim
+        context (FloatTensor): batch x sourceL x dim
+        coverage (FloatTensor): batch x sourceL
+        upper_bounds (FloatTensor): batch x sourceL
         """
-
         # Check input sizes
-        src_batch, src_len, src_dim = h_s.size()
-        tgt_batch, tgt_len, tgt_dim = h_t.size()
-        aeq(src_batch, tgt_batch)
-        aeq(src_dim, tgt_dim)
-        aeq(self.dim, src_dim)
-
-        if self.attn_type in ["general", "dot"]:
-            if self.attn_type == "general":
-                h_t_ = h_t.view(tgt_batch*tgt_len, tgt_dim)
-                h_t_ = self.linear_in(h_t_)
-                h_t = h_t_.view(tgt_batch, tgt_len, tgt_dim)
-            h_s_ = h_s.transpose(1, 2)
-            # (batch, t_len, d) x (batch, d, s_len) --> (batch, t_len, s_len)
-            return torch.bmm(h_t, h_s_)
-        else:
-            dim = self.dim
-            wq = self.linear_query(h_t.view(-1, dim))
-            wq = wq.view(tgt_batch, tgt_len, 1, dim)
-            wq = wq.expand(tgt_batch, tgt_len, src_len, dim)
-
-            uh = self.linear_context(h_s.contiguous().view(-1, dim))
-            uh = uh.view(src_batch, 1, src_len, dim)
-            uh = uh.expand(src_batch, tgt_len, src_len, dim)
-
-            # (batch, t_len, s_len, d)
-            wquh = self.tanh(wq + uh)
-
-            return self.v(wquh.view(-1, dim)).view(tgt_batch, tgt_len, src_len)
-
-    def forward(self, input, context, context_lengths=None, coverage=None):
-        """
-
-        Args:
-          input (`FloatTensor`): query vectors `[batch x tgt_len x dim]`
-          context (`FloatTensor`): source vectors `[batch x src_len x dim]`
-          context_lengths (`LongTensor`): the source context lengths `[batch]`
-          coverage (`FloatTensor`): None (not supported yet)
-
-        Returns:
-          (`FloatTensor`, `FloatTensor`):
-
-          * Computed vector `[tgt_len x batch x dim]`
-          * Attention distribtutions for each query
-             `[tgt_len x batch x src_len]`
-        """
-
-        # one step input
-        if input.dim() == 2:
-            one_step = True
-            input = input.unsqueeze(1)
-        else:
-            one_step = False
-
         batch, sourceL, dim = context.size()
-        batch_, targetL, dim_ = input.size()
+        batch_, dim_ = input.size()
         aeq(batch, batch_)
         aeq(dim, dim_)
         aeq(self.dim, dim)
@@ -160,56 +99,79 @@ class GlobalAttention(nn.Module):
             aeq(batch, batch_)
             aeq(sourceL, sourceL_)
 
-        if coverage is not None:
-            cover = coverage.view(-1).unsqueeze(1)
-            context += self.linear_cover(cover).view_as(context)
+        if self.mask is not None:
+            beam_, batch_, sourceL_ = self.mask.size()
+            aeq(batch, batch_*beam_)
+            aeq(sourceL, sourceL_)
+
+        if coverage:
+            context += self.linear_cover(coverage.view(-1).unsqueeze(1)) \
+                           .view_as(context)
             context = self.tanh(context)
+        # Alignment/Attention Function
+        if self.attn_type == "dotprod":
+            # batch x dim x 1
+            targetT = self.linear_in(input).unsqueeze(2)
+            # batch x sourceL
+            attn = torch.bmm(context, targetT).squeeze(2)
+        elif self.attn_type == "mlp":
+            # batch x dim x 1
+            wq = self.linear_query(input).unsqueeze(1)
+            # batch x sourceL x dim
+            uh = self.linear_context(context.contiguous())
+            # batch x sourceL x dim
+            wquh = uh + wq.expand_as(uh)
+            # batch x sourceL x dim
+            wquh = self.tanh(wquh)
+            # batch x sourceL
+            #print("self.v: ", self.v.weight)
+            attn = self.v(wquh.contiguous()).squeeze()
+ 
+        # EXPERIMENTAL
+        
+        if upper_bounds is not None and 'constrained' in self.attn_transform and self.c_attn!=0.0:
+            indices = torch.arange(0,upper_bounds.size(1)-1).cuda().long()
+            uu = torch.index_select(upper_bounds.data, 1, indices) 
+            attn = attn + self.c_attn * Variable(torch.cat((uu, torch.zeros(upper_bounds.size(0)).cuda()), 1))
 
-        # compute attention scores, as in Luong et al.
-        align = self.score(input, context)
 
-        if context_lengths is not None:
-            mask = sequence_mask(context_lengths)
-            mask = mask.unsqueeze(1)  # Make it broadcastable.
-            align.data.masked_fill_(1 - mask, -float('inf'))
-
-        # Softmax to normalize attention weights
-        align_vectors = self.sm(align.view(batch*targetL, sourceL))
-        align_vectors = align_vectors.view(batch, targetL, sourceL)
-
-        # each context vector c_t is the weighted average
-        # over all the source hidden states
-        c = torch.bmm(align_vectors, context)
-
-        # concatenate
-        concat_c = torch.cat([c, input], 2).view(batch*targetL, dim*2)
-        attn_h = self.linear_out(concat_c).view(batch, targetL, dim)
-        if self.attn_type in ["general", "dot"]:
-            attn_h = self.tanh(attn_h)
-
-        if one_step:
-            attn_h = attn_h.squeeze(1)
-            align_vectors = align_vectors.squeeze(1)
-
-            # Check output sizes
-            batch_, dim_ = attn_h.size()
-            aeq(batch, batch_)
-            aeq(dim, dim_)
-            batch_, sourceL_ = align_vectors.size()
-            aeq(batch, batch_)
-            aeq(sourceL, sourceL_)
+        if self.mask is not None:
+            attn.data.masked_fill_(self.mask, -float('inf'))
+        if self.attn_transform == 'constrained_softmax':
+            if upper_bounds is None:
+                attn = nn.Softmax()(attn)
+            else:
+                # assert round(np.sum(upper_bounds.cpu().data.numpy()), 5) >= 1.0, pdb.set_trace()
+                attn = self.sm(attn, upper_bounds)
+        elif self.attn_transform == 'constrained_sparsemax':
+            if upper_bounds is None:
+                attn = Sparsemax()(attn)
+            else:
+                attn = self.sm(attn, upper_bounds)
         else:
-            attn_h = attn_h.transpose(0, 1).contiguous()
-            align_vectors = align_vectors.transpose(0, 1).contiguous()
+            attn = self.sm(attn)
+            #if upper_bounds is None:
+            #    attn = self.sm(attn)
+            #else:
+            #    attn = self.sm(attn - upper_bounds)
+        
+        # Compute context weighted by attention.
+        # batch x 1 x sourceL
+        attn3 = attn.view(attn.size(0), 1, attn.size(1))
+        # batch x dim
+        weightedContext = torch.bmm(attn3, context).squeeze(1)
+        # Concatenate the input to context (Luong only)
+        if self.attn_type == "dotprod":
+            weightedContext = torch.cat((weightedContext, input), 1)
+            weightedContext = self.linear_out(weightedContext)
+            weightedContext = self.tanh(weightedContext)
 
-            # Check output sizes
-            targetL_, batch_, dim_ = attn_h.size()
-            aeq(targetL, targetL_)
-            aeq(batch, batch_)
-            aeq(dim, dim_)
-            targetL_, batch_, sourceL_ = align_vectors.size()
-            aeq(targetL, targetL_)
-            aeq(batch, batch_)
-            aeq(sourceL, sourceL_)
+        # Check output sizes
+        batch_, sourceL_ = attn.size()
+        aeq(batch, batch_)
+        aeq(sourceL, sourceL_)
+        batch_, dim_ = weightedContext.size()
+        aeq(batch, batch_)
+        aeq(dim, dim_)
 
-        return attn_h, align_vectors
+        return weightedContext, attn

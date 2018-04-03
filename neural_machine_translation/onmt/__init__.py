@@ -1,10 +1,12 @@
-import onmt.io
-import onmt.translate
+import onmt.Constants
 import onmt.Models
 import onmt.Loss
-from onmt.Trainer import Trainer, Statistics
+from onmt.Translator import Translator
+from onmt.Dataset import Dataset
 from onmt.Optim import Optim
+from onmt.Dict import Dict
+from onmt.Beam import Beam
 
-# For flake8 compatibility
-__all__ = [onmt.Loss, onmt.Models,
-           Trainer, Optim, Statistics, onmt.io, onmt.translate]
+# For flake8 compatibility.
+__all__ = [onmt.Constants, onmt.Models, onmt.Loss,
+           Translator, Dataset, Optim, Dict, Beam]
