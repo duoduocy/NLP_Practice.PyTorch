@@ -1,15 +1,8 @@
 ## Introduction
 This is the implementation of Kim's [Convolutional Neural Networks for Sentence Classification](https://arxiv.org/abs/1408.5882) paper in PyTorch.
 
-1. Kim's implementation of the model in Theano:
-[https://github.com/yoonkim/CNN_sentence](https://github.com/yoonkim/CNN_sentence)
-2. Denny Britz has an implementation in Tensorflow:
-[https://github.com/dennybritz/cnn-text-classification-tf](https://github.com/dennybritz/cnn-text-classification-tf)
-3. Alexander Rakhlin's implementation in Keras;
-[https://github.com/alexander-rakhlin/CNN-for-Sentence-Classification-in-Keras](https://github.com/alexander-rakhlin/CNN-for-Sentence-Classification-in-Keras)
-
 ## Requirement
-* python 3
+* python 2.7
 * pytorch > 0.1
 * torchtext > 0.1
 * numpy
@@ -26,12 +19,7 @@ I haven't adjusted the hyper-parameters for SST seriously.
 
 ## Usage
 ```
-./main.py -h
-```
-or 
-
-```
-python3 main.py -h
+python main.py -h
 ```
 
 You will get:
@@ -73,7 +61,7 @@ optional arguments:
 
 ## Train
 ```
-./main.py
+python main.py
 ```
 You will get:
 
@@ -86,7 +74,7 @@ Evaluation - loss: 0.672396  acc: 57.6923%(615/1066)
 If you has construct you test set, you make testing like:
 
 ```
-/main.py -test -snapshot="./snapshot/2017-02-11_15-50-53/snapshot_steps1500.pt
+python main.py -test -snapshot="./snapshot/2017-02-11_15-50-53/snapshot_steps1500.pt
 ```
 The snapshot option means where your model load from. If you don't assign it, the model will start from scratch.
 
