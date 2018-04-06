@@ -22,6 +22,7 @@ parser.add_argument('-data_type', type=str, default='h5',
                     help='File format for the preprocessed data')
 parser.add_argument('-data', default='data/aic_mt/nmt_t2t_data_all/nmt_all_0303.train.h5',
                     help='Path to the *-train.pt file from preprocess.py')
+parser.add_argument('-data_alignment', default='data/aic_mt/nmt_t2t_data_all/nmt_all_0303.alignments.pt')
 parser.add_argument('-save_model', default='model',
                     help="""Model filename (the model will be saved as
                     <save_model>_epochN_PPL.pt where PPL is the
@@ -331,7 +332,7 @@ def trainModel(model, trainData, validData, dataset, dicts, optim, fert_dict, fe
             checkpoint = {
                 'model': model_state_dict,
                 'generator': generator_state_dict,
-                'dicts': dataset['dicts'],
+                'dicts': dicts,
                 'opt': opt,
                 'epoch': epoch,
                 'optim': optim
@@ -348,8 +349,8 @@ def main():
                        else opt.train_from_state_dict)
 
     if opt.data_type == 'h5':
-        #alignments = torch.load(opt.input_align)
-        alignments = None
+        alignments = torch.load(opt.data_alignment)
+        #alignments = None
         dicts = torch.load(opt.dict)['dicts']
         dataset = h5py.File(opt.data)
         trainData = onmt.Dataset_h5(dataset, 'train', opt.batch_size, opt.gpus,

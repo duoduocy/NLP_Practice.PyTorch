@@ -9,9 +9,7 @@ import onmt
 class Dataset_h5(object):
     """
     Manages dataset creation and usage.
-
     Example:
-
         `batch = data[batchnum]`
     """
 
@@ -54,7 +52,7 @@ class Dataset_h5(object):
             tgtBatch = None
 
         # Create a copying alignment.
-        alignment = None
+        #alignment = None
         if self.alignment:
             src_len = srcBatch.size(1)
             tgt_len = tgtBatch.size(1)

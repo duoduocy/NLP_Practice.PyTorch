@@ -2,9 +2,6 @@
 
 ## [About me](jxgu.cc)
 
-If you have any interest in deep learning and natural language processing, you can visit our open source.
-
-![](https://static.leiphone.com/uploads/new/article/740_740/201801/5a65986353910.jpg?imageMogr2/format/jpg/quality/90)
 
 ## Contents
 ### [Learn Deep Learning with Python in 90 Minutes](https://rawgit.com/gujiuxiang/PaperNotes/master/post/Convolutional_Neural_Networks/20180322_deep_learning_python.md.html)
@@ -20,5 +17,10 @@ If you have any interest in deep learning and natural language processing, you c
 ### Text classification
 
 ### Machine translation
+- [Unpaired Image Captioning by Language Pivoting](https://arxiv.org/abs/1803.05526)
 
 ### Question answering
+
+## Reference
+If you have any interest in deep learning and natural language processing, you can visit our open source.
+![](https://static.leiphone.com/uploads/new/article/740_740/201801/5a65986353910.jpg?imageMogr2/format/jpg/quality/90)
