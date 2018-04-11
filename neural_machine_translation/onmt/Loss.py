@@ -158,8 +158,7 @@ class MemoryEfficientLoss:
         """
         stats = Statistics()
 
-        original = {"out_t": outputs,
-                    "targ_t": batch.tgt[1:]}
+        original = {"out_t": outputs, "targ_t": batch.tgt[1:]}
 
         if self.coverage_loss:
             original["coverage_t"] = attns["coverage"]
@@ -199,10 +198,6 @@ class MemoryEfficientLoss:
 
                 loss_t += self.lambda_exhaust * u_t.sum()
                 # loss_t += self.lambda_exhaust * -1 * torch.pow(attns, 2).sum()
-
-	    if self.fertility_loss:
-		loss_t += self.lambda_fertility * self.compute_std_loss(s["true_fertility_vals"], 
-									s["predicted_fertility_vals"])
 
             stats.update(self.score(loss_t, scores_t, s["targ_t"]))
             if not self.eval:

@@ -18,180 +18,82 @@ onmt.Markdown.add_md_help_argument(parser)
 
 # Data options
 parser.add_argument('-dict', default='data/aic_mt/nmt_t2t_data_all/nmt_all_0303.dicts.pt')
-parser.add_argument('-data_type', type=str, default='h5',
-                    help='File format for the preprocessed data')
-parser.add_argument('-data', default='data/aic_mt/nmt_t2t_data_all/nmt_all_0303.train.h5',
-                    help='Path to the *-train.pt file from preprocess.py')
+parser.add_argument('-data_type', type=str, default='h5', help='File format for the preprocessed data')
+parser.add_argument('-data', default='data/aic_mt/nmt_t2t_data_all/nmt_all_0303.train.h5', help='Path to the *-train.pt file from preprocess.py')
 parser.add_argument('-data_alignment', default='data/aic_mt/nmt_t2t_data_all/nmt_all_0303.alignments.pt')
-parser.add_argument('-save_model', default='model',
-                    help="""Model filename (the model will be saved as
-                    <save_model>_epochN_PPL.pt where PPL is the
-                    validation perplexity""")
-parser.add_argument('-train_from_state_dict', default='', type=str,
-                    help="""If training from a checkpoint then this is the
-                    path to the pretrained model's state_dict.""")
-parser.add_argument('-train_from', default='', type=str,
-                    help="""If training from a checkpoint then this is the
-                    path to the pretrained model.""")
+parser.add_argument('-save_model', default='model', help="Model filename (the model will be saved as <save_model>_epochN_PPL.pt where PPL is the validation perplexity")
+parser.add_argument('-train_from_state_dict', default='', type=str, help="If training from a checkpoint then this is the path to the pretrained model's state_dict.")
+parser.add_argument('-train_from', default='', type=str, help="If training from a checkpoint then this is the path to the pretrained model.")
 
 # Model options
+parser.add_argument('-layers', type=int, default=1, help='Number of layers in the LSTM encoder/decoder')
+parser.add_argument('-rnn_size', type=int, default=512, help='Size of LSTM hidden states')
+parser.add_argument('-word_vec_size', type=int, default=512, help='Word embedding sizes')
+parser.add_argument('-feature_vec_size', type=int, default=100, help='Feature vec sizes')
 
-parser.add_argument('-layers', type=int, default=1,
-                    help='Number of layers in the LSTM encoder/decoder')
-parser.add_argument('-rnn_size', type=int, default=512,
-                    help='Size of LSTM hidden states')
-parser.add_argument('-word_vec_size', type=int, default=512,
-                    help='Word embedding sizes')
-parser.add_argument('-feature_vec_size', type=int, default=100,
-                    help='Feature vec sizes')
-
-parser.add_argument('-input_feed', type=int, default=1,
-                    help="""Feed the context vector at each time step as
-                    additional input (via concatenation with the word
-                    embeddings) to the decoder.""")
-parser.add_argument('-rnn_type', type=str, default='LSTM',
-                    choices=['LSTM', 'GRU'],
-                    help="""The gate type to use in the RNNs""")
+parser.add_argument('-input_feed', type=int, default=1, help="Feed the context vector at each time step as additional input (via concatenation with the word embeddings) to the decoder.")
+parser.add_argument('-rnn_type', type=str, default='LSTM', choices=['LSTM', 'GRU'], help="The gate type to use in the RNNs")
 # parser.add_argument('-residual',   action="store_true",
 #                     help="Add residual connections between RNN layers.")
-parser.add_argument('-brnn', action='store_true', default=True,
-                    help='Use a bidirectional encoder')
-parser.add_argument('-brnn_merge', default='concat',
-                    help="""Merge action for the bidirectional hidden states:
-                    [concat|sum]""")
-parser.add_argument('-copy_attn', action="store_true",
-                    help='Train copy attention layer.')
-parser.add_argument('-coverage_attn', action="store_true",
-                    help='Train a coverage attention layer.')
+parser.add_argument('-brnn', action='store_true', default=True, help='Use a bidirectional encoder')
+parser.add_argument('-brnn_merge', default='concat', help="Merge action for the bidirectional hidden states: [concat|sum]")
+parser.add_argument('-copy_attn', action="store_true", help='Train copy attention layer.')
+parser.add_argument('-coverage_attn', action="store_true", help='Train a coverage attention layer.')
 
-parser.add_argument('-exhaustion_loss', action="store_true",
-                    help='Train a loss to exhaust fertility')
-parser.add_argument('-lambda_exhaust', type=float, default=0.5,
-                    help='Lambda value for exhaustion.')
-parser.add_argument('-lambda_coverage', type=float, default=1,
-                    help='Lambda value for coverage.')
-parser.add_argument('-lambda_fertility', type=float, default=0.4,
-                    help='Lambda value for supervised fertility.')
+parser.add_argument('-exhaustion_loss', action="store_true", help='Train a loss to exhaust fertility')
+parser.add_argument('-lambda_exhaust', type=float, default=0.5, help='Lambda value for exhaustion.')
+parser.add_argument('-lambda_coverage', type=float, default=1, help='Lambda value for coverage.')
+parser.add_argument('-lambda_fertility', type=float, default=0.4,  help='Lambda value for supervised fertility.')
 
-parser.add_argument('-encoder_layer', type=str, default='rnn',
-                    help="""Type of encoder layer to use.
-                    Options: [rnn|mean|transformer]""")
-parser.add_argument('-decoder_layer', type=str, default='rnn',
-                    help='Type of decoder layer to use. [rnn|transformer]')
-parser.add_argument('-context_gate', type=str, default=None,
-                    choices=['source', 'target', 'both'],
-                    help="""Type of context gate to use [source|target|both].
-                    Do not select for no context gate.""")
-parser.add_argument('-attention_type', type=str, default='dotprod',
-                    choices=['dotprod', 'mlp'],
-                    help="""The attention type to use:
-                    dotprot (Luong) or MLP (Bahdanau)""")
-parser.add_argument('-attn_transform', type=str, default='softmax',
-                    choices=['softmax', 'constrained_softmax','sparsemax',
-                             'constrained_sparsemax'],
-                    help="""The attention transform to use""")
+parser.add_argument('-encoder_layer', type=str, default='rnn', help="Type of encoder layer to use. Options: [rnn|mean|transformer]")
+parser.add_argument('-decoder_layer', type=str, default='rnn', help='Type of decoder layer to use. [rnn|transformer]')
+parser.add_argument('-context_gate', type=str, default=None, choices=['source', 'target', 'both'], help="Type of context gate to use [source|target|both]. Do not select for no context gate.")
+parser.add_argument('-attention_type', type=str, default='dotprod', choices=['dotprod', 'mlp'], help="The attention type to use: dotprot (Luong) or MLP (Bahdanau)")
+parser.add_argument('-attn_transform', type=str, default='softmax', choices=['softmax', 'constrained_softmax','sparsemax', 'constrained_sparsemax'], help="The attention transform to use")
 
-parser.add_argument('-c_attn', type=float, default=0.0,
-                    help="""c factor for increasing a by u""")
-parser.add_argument('-fertility', type=float, default=2.0,
-                    help="""Constant fertility value for each word in the source""")
-parser.add_argument('-predict_fertility', action="store_true",
-                    help="""Predict fertility value for each word in the source""")
-parser.add_argument('-guided_fertility', type=str, default=None,
-                    help="""Get fertility values from external aligner, specify alignment file""")
-parser.add_argument('-guided_fertility_source_file', type=str, default=None,
-                    help="""Get fertility values from external aligner, specify source file""")
-parser.add_argument('-supervised_fertility', type=str, default=None,
-                    help="""Get fertility values from external aligner, specify alignment file""")
+parser.add_argument('-c_attn', type=float, default=0.0, help="c factor for increasing a by u")
+parser.add_argument('-fertility', type=float, default=2.0, help="Constant fertility value for each word in the source")
+parser.add_argument('-predict_fertility', action="store_true", help="Predict fertility value for each word in the source")
+parser.add_argument('-guided_fertility', type=str, default=None, help="Get fertility values from external aligner, specify alignment file")
+parser.add_argument('-guided_fertility_source_file', type=str, default=None, help="Get fertility values from external aligner, specify source file")
+parser.add_argument('-supervised_fertility', type=str, default=None, help="Get fertility values from external aligner, specify alignment file")
 
 # Optimization options
-parser.add_argument('-encoder_type', default='text',
-                    help="Type of encoder to use. Options are [text|img].")
-parser.add_argument('-batch_size', type=int, default=64,
-                    help='Maximum batch size')
-parser.add_argument('-max_generator_batches', type=int, default=32,
-                    help="""Maximum batches of words in a sequence to run
-                    the generator on in parallel. Higher is faster, but uses
-                    more memory.""")
-parser.add_argument('-epochs', type=int, default=13,
-                    help='Number of training epochs')
-parser.add_argument('-start_epoch', type=int, default=1,
-                    help='The epoch from which to start')
-parser.add_argument('-param_init', type=float, default=0.1,
-                    help="""Parameters are initialized over uniform distribution
-                    with support (-param_init, param_init).
-                    Use 0 to not use initialization""")
-parser.add_argument('-optim', default='sgd',
-                    help="Optimization method. [sgd|adagrad|adadelta|adam]")
-parser.add_argument('-max_grad_norm', type=float, default=5,
-                    help="""If the norm of the gradient vector exceeds this,
-                    renormalize it to have the norm equal to max_grad_norm""")
-parser.add_argument('-dropout', type=float, default=0.3,
-                    help='Dropout probability; applied between LSTM stacks.')
-parser.add_argument('-position_encoding', action='store_true',
-                    help='Use a sinusoid to mark relative words positions.')
-parser.add_argument('-share_decoder_embeddings', action='store_true',
-                    help='Share the word and softmax embeddings for decoder.')
+parser.add_argument('-encoder_type', default='text', help="Type of encoder to use. Options are [text|img].")
+parser.add_argument('-batch_size', type=int, default=64, help='Maximum batch size')
+parser.add_argument('-max_generator_batches', type=int, default=32, help="Maximum batches of words in a sequence to run the generator on in parallel. Higher is faster, but uses more memory.")
+parser.add_argument('-epochs', type=int, default=13, help='Number of training epochs')
+parser.add_argument('-start_epoch', type=int, default=1, help='The epoch from which to start')
+parser.add_argument('-param_init', type=float, default=0.1, help="Parameters are initialized over uniform distribution with support (-param_init, param_init). Use 0 to not use initialization")
+parser.add_argument('-optim', default='sgd', help="Optimization method. [sgd|adagrad|adadelta|adam]")
+parser.add_argument('-max_grad_norm', type=float, default=5, help="If the norm of the gradient vector exceeds this, renormalize it to have the norm equal to max_grad_norm")
+parser.add_argument('-dropout', type=float, default=0.3, help='Dropout probability; applied between LSTM stacks.')
+parser.add_argument('-position_encoding', action='store_true', help='Use a sinusoid to mark relative words positions.')
+parser.add_argument('-share_decoder_embeddings', action='store_true', help='Share the word and softmax embeddings for decoder.')
 
-parser.add_argument('-curriculum', action="store_true",
-                    help="""For this many epochs, order the minibatches based
-                    on source sequence length. Sometimes setting this to 1 will
-                    increase convergence speed.""")
-parser.add_argument('-extra_shuffle', action="store_true",
-                    help="""By default only shuffle mini-batch order; when true,
-                    shuffle and re-assign mini-batches""")
-parser.add_argument('-truncated_decoder', type=int, default=0,
-                    help="""Truncated bptt.""")
+parser.add_argument('-curriculum', action="store_true", help="For this many epochs, order the minibatches based on source sequence length. Sometimes setting this to 1 will increase convergence speed.")
+parser.add_argument('-extra_shuffle', action="store_true", help="By default only shuffle mini-batch order; when true, shuffle and re-assign mini-batches")
+parser.add_argument('-truncated_decoder', type=int, default=0, help="""Truncated bptt.""")
 
 # learning rate
-parser.add_argument('-learning_rate', type=float, default=1.0,
-                    help="""Starting learning rate. If adagrad/adadelta/adam is
-                    used, then this is the global learning rate. Recommended
-                    settings: sgd = 1, adagrad = 0.1,
-                    adadelta = 1, adam = 0.001""")
+parser.add_argument('-learning_rate', type=float, default=1.0, help="If adagrad/adadelta/adam is used, then this is the global learning rate. Recommended settings: sgd = 1, adagrad = 0.1, adadelta = 1, adam = 0.001")
 parser.add_argument('-momentum', type=float, default=0)
-parser.add_argument('-learning_rate_decay', type=float, default=0.5,
-                    help="""If update_learning_rate, decay learning rate by
-                    this much if (i) perplexity does not decrease on the
-                    validation set or (ii) epoch has gone past
-                    start_decay_at""")
-parser.add_argument('-start_decay_at', type=int, default=8,
-                    help="""Start decaying every epoch after and including this
-                    epoch""")
-parser.add_argument('-start_checkpoint_at', type=int, default=0,
-                    help="""Start checkpointing every epoch after and including this
-                    epoch""")
-parser.add_argument('-decay_method', type=str, default="",
-                    help="""Use a custom learning rate decay [|noam] """)
-parser.add_argument('-warmup_steps', type=int, default=4000,
-                    help="""Number of warmup steps for custom decay.""")
-
+parser.add_argument('-learning_rate_decay', type=float, default=0.5, help="If update_learning_rate, decay learning rate by this much if (i) perplexity does not decrease on the validation set or (ii) epoch has gone past start_decay_at")
+parser.add_argument('-start_decay_at', type=int, default=8, help="""Start decaying every epoch after and including this epoch""")
+parser.add_argument('-start_checkpoint_at', type=int, default=0, help="""Start checkpointing every epoch after and including this epoch""")
+parser.add_argument('-decay_method', type=str, default="", help="""Use a custom learning rate decay [|noam] """)
+parser.add_argument('-warmup_steps', type=int, default=4000, help="""Number of warmup steps for custom decay.""")
 
 # pretrained word vectors
-
-parser.add_argument('-pre_word_vecs_enc',
-                    help="""If a valid path is specified, then this will load
-                    pretrained word embeddings on the encoder side.
-                    See README for specific formatting instructions.""")
-parser.add_argument('-pre_word_vecs_dec',
-                    help="""If a valid path is specified, then this will load
-                    pretrained word embeddings on the decoder side.
-                    See README for specific formatting instructions.""")
+parser.add_argument('-pre_word_vecs_enc', help="""If a valid path is specified, then this will load pretrained word embeddings on the encoder side. See README for specific formatting instructions.""")
+parser.add_argument('-pre_word_vecs_dec', help="""If a valid path is specified, then this will load pretrained word embeddings on the decoder side.  See README for specific formatting instructions.""")
 
 # GPU
-parser.add_argument('-gpus', default=[0], nargs='+', type=int,
-                    help="Use CUDA on the listed devices.")
-
-parser.add_argument('-log_interval', type=int, default=50,
-                    help="Print stats at this interval.")
-parser.add_argument('-log_server', type=str, default="",
-                    help="Send logs to this crayon server.")
-parser.add_argument('-experiment_name', type=str, default="",
-                    help="Name of the experiment for logging.")
-
-parser.add_argument('-seed', type=int, default=-1,
-                    help="""Random seed used for the experiments
-                    reproducibility.""")
+parser.add_argument('-gpus', default=1, type=int,  help="Use how many GPUs.")
+parser.add_argument('-log_interval', type=int, default=50, help="Print stats at this interval.")
+parser.add_argument('-log_server', type=str, default="", help="Send logs to this crayon server.")
+parser.add_argument('-experiment_name', type=str, default="", help="Name of the experiment for logging.")
+parser.add_argument('-seed', type=int, default=-1, help="""Random seed used for the experiments reproducibility.""")
 
 opt = parser.parse_args()
 
@@ -203,8 +105,9 @@ if opt.seed > 0:
 if torch.cuda.is_available() and not opt.gpus:
     print("WARNING: You have a CUDA device, should run with -gpus 0")
 
+opt.gpus = range(opt.gpus)
 if opt.gpus:
-    cuda.set_device(opt.gpus[0])
+    #cuda.set_device(opt.gpus)
     if opt.seed > 0:
         torch.cuda.manual_seed(opt.seed)
 
@@ -224,8 +127,7 @@ if opt.log_server != "":
 def eval(model, criterion, data, fert_dict):
     stats = onmt.Loss.Statistics()
     model.eval()
-    loss = onmt.Loss.MemoryEfficientLoss(opt, model.generator, criterion,
-                                         eval=True, copy_loss=opt.copy_attn)
+    loss = onmt.Loss.MemoryEfficientLoss(opt, model.generator, criterion, eval=True, copy_loss=opt.copy_attn)
     for i in range(len(data)):
         batch = data[i]
         outputs, attn, dec_hidden, _ = model(batch.src, batch.tgt, batch.lengths, fert_dict=fert_dict)
@@ -233,7 +135,6 @@ def eval(model, criterion, data, fert_dict):
         stats.update(batch_stats)
     model.train()
     return stats
-
 
 def trainModel(model, trainData, validData, dataset, dicts, optim, fert_dict, fert_sents):
     print(model)
@@ -263,21 +164,14 @@ def trainModel(model, trainData, validData, dataset, dicts, optim, fert_dict, fe
             batch = trainData[batchIdx]
             target_size = batch.tgt.size(0)
             dec_state = None
-            trunc_size = opt.truncated_decoder if opt.truncated_decoder \
-                else target_size
+            trunc_size = opt.truncated_decoder if opt.truncated_decoder else target_size
 
             for j in range(0, target_size-1, trunc_size):
                 trunc_batch = batch.truncate(j, j + trunc_size)
                 # Main training loop
                 model.zero_grad()
-                outputs, attn, dec_state, upper_bounds = model(trunc_batch.src,
-                                                 trunc_batch.tgt,
-                                                 trunc_batch.lengths,
-                                                 dec_state,
-                                                 fert_dict, 
-						 fert_sents)
-                batch_stats, inputs, grads \
-                    = mem_loss.loss(trunc_batch, outputs, attn)
+                outputs, attn, dec_state, upper_bounds = model(trunc_batch.src, trunc_batch.tgt, trunc_batch.lengths, dec_state, fert_dict, fert_sents)
+                batch_stats, inputs, grads = mem_loss.loss(trunc_batch, outputs, attn)
 
                 torch.autograd.backward(inputs, grads)
 
@@ -320,13 +214,9 @@ def trainModel(model, trainData, validData, dataset, dicts, optim, fert_dict, fe
         #  (3) update the learning rate
         optim.updateLearningRate(valid_stats.ppl(), epoch)
 
-        model_state_dict = (model.module.state_dict() if len(opt.gpus) > 1
-                            else model.state_dict())
-        model_state_dict = {k: v for k, v in model_state_dict.items()
-                            if 'generator' not in k}
-        generator_state_dict = (model.generator.module.state_dict()
-                                if len(opt.gpus) > 1
-                                else model.generator.state_dict())
+        model_state_dict = (model.module.state_dict() if len(opt.gpus) > 1 else model.state_dict())
+        model_state_dict = {k: v for k, v in model_state_dict.items() if 'generator' not in k}
+        generator_state_dict = (model.generator.module.state_dict() if len(opt.gpus) > 1 else model.generator.state_dict())
         #  (4) drop a checkpoint
         if epoch >= opt.start_checkpoint_at:
             checkpoint = {

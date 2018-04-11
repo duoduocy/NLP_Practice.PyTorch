@@ -1,5 +1,6 @@
 from __future__ import division
 
+import numpy as np
 import math
 import torch
 from torch.autograd import Variable
@@ -12,7 +13,6 @@ class Dataset_h5(object):
     Example:
         `batch = data[batchnum]`
     """
-
     def __init__(self, nmt_Data, split, batchSize, cuda,
                  volatile=False, data_type="text",
                  srcFeatures=None, tgtFeatures=None, alignment=None):
@@ -34,7 +34,8 @@ class Dataset_h5(object):
         max_length = max(lengths)
         out = torch.Tensor(data.shape[0], max_length.astype(int)).fill_(onmt.Constants.PAD)
         for i in range(data.shape[0]):
-            out[i].narrow(0, 0, lengths[i].astype(int)).copy_(torch.from_numpy(data[i,:lengths[i]].astype('int32')))
+            offset = max_length - np.count_nonzero(data[i]) if align_right else 0
+            out[i].narrow(0, offset, lengths[i].astype(int)).copy_(torch.from_numpy(data[i,:lengths[i]].astype('int32')))
         return out.long()
 
     def __getitem__(self, index):
@@ -52,7 +53,7 @@ class Dataset_h5(object):
             tgtBatch = None
 
         # Create a copying alignment.
-        #alignment = None
+        alignment = None
         if self.alignment:
             src_len = srcBatch.size(1)
             tgt_len = tgtBatch.size(1)
@@ -153,48 +154,32 @@ class Dataset(object):
 
     def _batchify(self, data, align_right=False,
                   include_lengths=False, dtype="text", features=None):
-        if dtype == "text":
-            lengths = [x.size(0) for x in data]
-            max_length = max(lengths)
+        lengths = [x.size(0) for x in data]
+        max_length = max(lengths)
+        if features:
+            num_features = len(features)
+            out = data[0].new(len(data), max_length, num_features + 1) \
+                         .fill_(onmt.Constants.PAD)
+            assert (len(data) == len(features[0])), \
+                ("%s %s" % (data[0].size(), len(features[0])))
+        else:
+            out = data[0].new(len(data), max_length) \
+                         .fill_(onmt.Constants.PAD)
+        for i in range(len(data)):
+            data_length = data[i].size(0)
+            offset = max_length - data_length if align_right else 0
             if features:
-                num_features = len(features)
-                out = data[0].new(len(data), max_length, num_features + 1) \
-                             .fill_(onmt.Constants.PAD)
-                assert (len(data) == len(features[0])), \
-                    ("%s %s" % (data[0].size(), len(features[0])))
+                out[i].narrow(0, offset, data_length)[:, 0].copy_(data[i])
+                for j in range(num_features):
+                    out[i].narrow(0, offset, data_length)[:, j+1] \
+                          .copy_(features[j][i])
             else:
-                out = data[0].new(len(data), max_length) \
-                             .fill_(onmt.Constants.PAD)
-            for i in range(len(data)):
-                data_length = data[i].size(0)
-                offset = max_length - data_length if align_right else 0
-                if features:
-                    out[i].narrow(0, offset, data_length)[:, 0].copy_(data[i])
-                    for j in range(num_features):
-                        out[i].narrow(0, offset, data_length)[:, j+1] \
-                              .copy_(features[j][i])
-                else:
-                    out[i].narrow(0, offset, data_length).copy_(data[i])
+                out[i].narrow(0, offset, data_length).copy_(data[i])
 
-            if include_lengths:
-                return out, lengths
-            else:
-                return out
-        elif dtype == "img":
-            heights = [x.size(1) for x in data]
-            max_height = max(heights)
-            widths = [x.size(2) for x in data]
-            max_width = max(widths)
-
-            out = data[0].new(len(data), 3, max_height, max_width).fill_(0)
-            for i in range(len(data)):
-                data_height = data[i].size(1)
-                data_width = data[i].size(2)
-                height_offset = max_height - data_height if align_right else 0
-                width_offset = max_width - data_width if align_right else 0
-                out[i].narrow(1, height_offset, data_height) \
-                      .narrow(2, width_offset, data_width).copy_(data[i])
-            return out, widths
+        if include_lengths:
+            return out, lengths
+        else:
+            return out
 
     def __getitem__(self, index):
         assert index < self.numBatches, "%d > %d" % (index, self.numBatches)
