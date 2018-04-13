@@ -14,84 +14,6 @@ import numpy as np
 import pdb
 import evaluation
 
-class Weight_Trans_x(nn.Module):
-    def __init__(self, opt):
-        super(Weight_Trans_x, self).__init__()
-        self.mse = torch.nn.MSELoss()
-        self.gen_joint_mask(opt)
-        self.get_i2t_wemb()
-
-    def get_i2t_wemb(self):
-        # Here we only init the fc model (we use it as the baseline)
-        other = torch.load('save/20180222-093200.fc/model-best.pth')
-        self.i2t_wemb_weights = other.items()[6][1].cpu()
-
-    def gen_joint_mask(self, opt):
-        print('Generate mask for joint vocabulary.')
-        load_data = torch.load('data/ai_challenger/machine_translation/nmt_t2t_data_all/nmt_all_0303pivot.joint_vocab.pt')
-        self.i2t_pivot_joint_vocab = load_data['i2t_pivot_joint_vocab']
-        self.nmt_pivot_joint_vocab = load_data['nmt_pivot_joint_vocab']
-        self.i2t_pivot_joint_mask = load_data['i2t_pivot_joint_mask']
-        self.nmt_pivot_joint_mask = load_data['nmt_pivot_joint_mask']
-        self.maps = torch.Tensor(len(self.i2t_pivot_joint_vocab), 2)
-        nmt_pivot_joint_vocab_label2idx = {label: idx for idx, label in self.nmt_pivot_joint_vocab.items()}
-        vocab_idx = 0
-        for idx, label in self.i2t_pivot_joint_vocab.items():
-            if label in nmt_pivot_joint_vocab_label2idx.keys():
-                self.maps[vocab_idx,0] = int(idx)
-                self.maps[vocab_idx,1] = nmt_pivot_joint_vocab_label2idx[label]
-                vocab_idx = vocab_idx + 1
-        print('Joint vocabulary for i2t = {} and t2i = {}'.format(len(self.i2t_pivot_joint_vocab), len(self.nmt_pivot_joint_vocab)))
-
-    def mse_loss(self, input, target):
-        #return torch.sum((input - target)^2) / input.data.nelement()
-        return torch.mean((input - target) ** 2)
-
-    def forward(self, pivot_wemb_nmt):
-        _pivot_wemb_i2t = self.i2t_wemb_weights[self.maps[:, 0].long()]
-        _pivot_wemb_nmt = pivot_wemb_nmt(Variable(torch.from_numpy(self.maps[:, 1].long().numpy()).cuda(), requires_grad=False))
-        loss_0 = self.mse_loss(_pivot_wemb_nmt, Variable(_pivot_wemb_i2t.cuda(), requires_grad=False))
-        return loss_0
-
-class Weight_Trans_y(nn.Module):
-    def __init__(self, opt):
-        super(Weight_Trans_y, self).__init__()
-        self.mse = torch.nn.MSELoss()
-        self.gen_joint_mask(opt)
-        self.get_i2t_wemb()
-
-    def get_i2t_wemb(self):
-        # Here we only init the fc model (we use it as the baseline)
-        other = torch.load('save/09021117_cnn_resnet101.lm_debug13_scst_.rnn_LSTM/09021117_cnn_resnet101.lm_debug13_scst_.rnn_LSTM.model-best.pth')
-        self.i2t_wemb_weights = other.items()[6][1].cpu()
-
-    def gen_joint_mask(self, opt):
-        print('Generate mask for joint vocabulary.')
-        load_data = torch.load('data/ai_challenger/machine_translation/nmt_t2t_data_all/nmt_all_0303target.joint_vocab.pt')
-        self.i2t_target_joint_vocab = load_data['i2t_target_joint_vocab']
-        self.nmt_target_joint_vocab = load_data['nmt_target_joint_vocab']
-        self.i2t_target_joint_mask = load_data['i2t_target_joint_mask']
-        self.nmt_target_joint_mask = load_data['nmt_target_joint_mask']
-        self.maps = torch.Tensor(len(self.i2t_target_joint_vocab), 2)
-        nmt_target_joint_vocab_label2idx = {label: idx for idx, label in self.nmt_target_joint_vocab.items()}
-        vocab_idx = 0
-        for idx, label in self.i2t_target_joint_vocab.items():
-            if label in nmt_target_joint_vocab_label2idx.keys():
-                self.maps[vocab_idx,0] = int(idx)
-                self.maps[vocab_idx,1] = nmt_target_joint_vocab_label2idx[label]
-                vocab_idx = vocab_idx + 1
-        print('Joint vocabulary for i2t = {} and t2i = {}'.format(len(self.i2t_target_joint_vocab), len(self.nmt_target_joint_vocab)))
-
-    def mse_loss(self, input, target):
-        #return torch.sum((input - target)^2) / input.data.nelement()
-        return torch.mean((input - target) ** 2)
-
-    def forward(self, pivot_wemb_nmt):
-        _target_wemb_i2t = self.i2t_wemb_weights[self.maps[:, 0].long()]
-        _target_wemb_nmt = pivot_wemb_nmt(Variable(torch.from_numpy(self.maps[:, 1].long().numpy()).cuda(), requires_grad=False))
-        loss_0 = self.mse_loss(_target_wemb_nmt, Variable(_target_wemb_i2t.cuda(), requires_grad=False))
-        return loss_0
-
 class Embeddings(nn.Module):
     def __init__(self, opt, dicts, feature_dicts=None):
         super(Embeddings, self).__init__()
@@ -104,16 +26,7 @@ class Embeddings(nn.Module):
         self.word_lut = nn.Embedding(dicts.size(), opt.word_vec_size, padding_idx=onmt.Constants.PAD)  # Word embeddings.
         self.dropout = nn.Dropout(p=opt.dropout)
         self.feature_dicts = feature_dicts
-        # Feature embeddings.
-        if self.feature_dicts is not None:
-            self.feature_luts = nn.ModuleList([
-                                nn.Embedding(feature_dict.size(), opt.feature_vec_size, padding_idx=onmt.Constants.PAD)
-                                for feature_dict in feature_dicts])
-            # MLP on features and words.
-            self.activation = nn.ReLU()
-            self.linear = onmt.modules.BottleLinear(opt.word_vec_size + len(feature_dicts) * opt.feature_vec_size, opt.word_vec_size)
-        else:
-            self.feature_luts = nn.ModuleList([])
+        self.feature_luts = nn.ModuleList([])
 
     def make_positional_encodings(self, dim, max_len):
         pe = torch.FloatTensor(max_len, 1, dim).fill_(0)
@@ -136,10 +49,6 @@ class Embeddings(nn.Module):
         """
         word = self.word_lut(src_input[:, :, 0])
         emb = word
-        if self.feature_dicts is not None:
-            features = [feature_lut(src_input[:, :, j + 1]) for j, feature_lut in enumerate(self.feature_luts)]
-            # Apply one MLP layer.
-            emb = self.activation(self.linear(torch.cat([word] + features, -1)))
         if self.positional_encoding:
             emb = emb + Variable(self.pe[:emb.size(0), :1, :emb.size(2)].expand_as(emb))
             emb = self.dropout(emb)
@@ -226,7 +135,7 @@ class Decoder(nn.Module):
         self.decoder_layer = opt.decoder_layer
         self._coverage = opt.coverage_attn
         self.exhaustion_loss = opt.exhaustion_loss
-        self.fertility_loss = True if opt.supervised_fertility else False
+        self.fertility_loss = False
         self.hidden_size = opt.rnn_size
         self.input_feed = opt.input_feed
         input_size = opt.word_vec_size
@@ -398,7 +307,6 @@ class NMTModel(nn.Module):
             dec_state = None
             attns = None
         return out, attns, dec_state, upper_bounds
-
 
 class DecoderState(object):
     def detach(self):
