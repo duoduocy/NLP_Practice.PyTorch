@@ -1,112 +1,303 @@
-import os
-import pandas as pd
-import pprint
 
-import tensorflow as tf
-import tensorflow.contrib.slim as slim
+# coding: utf-8
 
-from data_model import StockDataSet
-from model_rnn import LstmRNN
+# ## A Dual-Stage Attention-Based Recurrent Neural Network for Time Series Prediction
+# source: https://arxiv.org/pdf/1704.02971.pdf
+# pytorch example: http://pytorch.org/tutorials/intermediate/seq2seq_translation_tutorial.html
 
-flags = tf.app.flags
-flags.DEFINE_integer("stock_count", 100, "Stock count [100]")
-flags.DEFINE_integer("input_size", 1, "Input size [1]")
-flags.DEFINE_integer("num_steps", 30, "Num of steps [30]")
-flags.DEFINE_integer("num_layers", 1, "Num of layer [1]")
-flags.DEFINE_integer("lstm_size", 128, "Size of one LSTM cell [128]")
-flags.DEFINE_integer("batch_size", 64, "The size of batch images [64]")
-flags.DEFINE_float("keep_prob", 0.8, "Keep probability of dropout layer. [0.8]")
-flags.DEFINE_float("init_learning_rate", 0.001, "Initial learning rate at early stage. [0.001]")
-flags.DEFINE_float("learning_rate_decay", 0.99, "Decay rate of learning rate. [0.99]")
-flags.DEFINE_integer("init_epoch", 5, "Num. of epoches considered as early stage. [5]")
-flags.DEFINE_integer("max_epoch", 50, "Total training epoches. [50]")
-flags.DEFINE_integer("embed_size", None, "If provided, use embedding vector of this size. [None]")
-flags.DEFINE_string("stock_symbol", None, "Target stock symbol [None]")
-flags.DEFINE_integer("sample_size", 4, "Number of stocks to plot during training. [4]")
-flags.DEFINE_boolean("train", False, "True for training, False for testing [False]")
+# In[1]:
 
-FLAGS = flags.FLAGS
+import torch
+from torch import nn
+from torch.autograd import Variable
+from torch import optim
+import torch.nn.functional as F
 
-pp = pprint.PrettyPrinter()
+import matplotlib
+# matplotlib.use('Agg')
+get_ipython().magic(u'matplotlib inline')
 
-if not os.path.exists("logs"):
-    os.mkdir("logs")
+import datetime as dt, itertools, pandas as pd, matplotlib.pyplot as plt, numpy as np
+
+import utility as util
+
+global logger
+
+util.setup_log()
+util.setup_path()
+logger = util.logger
+
+use_cuda = torch.cuda.is_available()
+logger.info("Is CUDA available? %s.", use_cuda)
 
 
-def show_all_variables():
-    model_vars = tf.trainable_variables()
-    slim.model_analyzer.analyze_vars(model_vars, print_info=True)
+# In[2]:
+
+class encoder(nn.Module):
+    def __init__(self, input_size, hidden_size, T, logger):
+        # input size: number of underlying factors (81)
+        # T: number of time steps (10)
+        # hidden_size: dimension of the hidden state
+        super(encoder, self).__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.T = T
+
+        self.logger = logger
+
+        self.lstm_layer = nn.LSTM(input_size = input_size, hidden_size = hidden_size, num_layers = 1)
+        self.attn_linear = nn.Linear(in_features = 2 * hidden_size + T - 1, out_features = 1)
+
+    def forward(self, input_data):
+        # input_data: batch_size * T - 1 * input_size
+        input_weighted = Variable(input_data.data.new(input_data.size(0), self.T - 1, self.input_size).zero_())
+        input_encoded = Variable(input_data.data.new(input_data.size(0), self.T - 1, self.hidden_size).zero_())
+        # hidden, cell: initial states with dimention hidden_size
+        hidden = self.init_hidden(input_data) # 1 * batch_size * hidden_size
+        cell = self.init_hidden(input_data)
+        # hidden.requires_grad = False
+        # cell.requires_grad = False
+        for t in range(self.T - 1):
+            # Eqn. 8: concatenate the hidden states with each predictor
+            x = torch.cat((hidden.repeat(self.input_size, 1, 1).permute(1, 0, 2),
+                           cell.repeat(self.input_size, 1, 1).permute(1, 0, 2),
+                           input_data.permute(0, 2, 1)), dim = 2) # batch_size * input_size * (2*hidden_size + T - 1)
+            # Eqn. 9: Get attention weights
+            x = self.attn_linear(x.view(-1, self.hidden_size * 2 + self.T - 1)) # (batch_size * input_size) * 1
+            attn_weights = F.softmax(x.view(-1, self.input_size)) # batch_size * input_size, attn weights with values sum up to 1.
+            # Eqn. 10: LSTM
+            weighted_input = torch.mul(attn_weights, input_data[:, t, :]) # batch_size * input_size
+            # Fix the warning about non-contiguous memory
+            # see https://discuss.pytorch.org/t/dataparallel-issue-with-flatten-parameter/8282
+            self.lstm_layer.flatten_parameters()
+            _, lstm_states = self.lstm_layer(weighted_input.unsqueeze(0), (hidden, cell))
+            hidden = lstm_states[0]
+            cell = lstm_states[1]
+            # Save output
+            input_weighted[:, t, :] = weighted_input
+            input_encoded[:, t, :] = hidden
+        return input_weighted, input_encoded
+
+    def init_hidden(self, x):
+        # No matter whether CUDA is used, the returned variable will have the same type as x.
+        return Variable(x.data.new(1, x.size(0), self.hidden_size).zero_()) # dimension 0 is the batch dimension
+
+class decoder(nn.Module):
+    def __init__(self, encoder_hidden_size, decoder_hidden_size, T, logger):
+        super(decoder, self).__init__()
+
+        self.T = T
+        self.encoder_hidden_size = encoder_hidden_size
+        self.decoder_hidden_size = decoder_hidden_size
+
+        self.logger = logger
+
+        self.attn_layer = nn.Sequential(nn.Linear(2 * decoder_hidden_size + encoder_hidden_size, encoder_hidden_size),
+                                         nn.Tanh(), nn.Linear(encoder_hidden_size, 1))
+        self.lstm_layer = nn.LSTM(input_size = 1, hidden_size = decoder_hidden_size)
+        self.fc = nn.Linear(encoder_hidden_size + 1, 1)
+        self.fc_final = nn.Linear(decoder_hidden_size + encoder_hidden_size, 1)
+
+        self.fc.weight.data.normal_()
+
+    def forward(self, input_encoded, y_history):
+        # input_encoded: batch_size * T - 1 * encoder_hidden_size
+        # y_history: batch_size * (T-1)
+        # Initialize hidden and cell, 1 * batch_size * decoder_hidden_size
+        hidden = self.init_hidden(input_encoded)
+        cell = self.init_hidden(input_encoded)
+        # hidden.requires_grad = False
+        # cell.requires_grad = False
+        for t in range(self.T - 1):
+            # Eqn. 12-13: compute attention weights
+            ## batch_size * T * (2*decoder_hidden_size + encoder_hidden_size)
+            x = torch.cat((hidden.repeat(self.T - 1, 1, 1).permute(1, 0, 2),
+                           cell.repeat(self.T - 1, 1, 1).permute(1, 0, 2), input_encoded), dim = 2)
+            x = F.softmax(self.attn_layer(x.view(-1, 2 * self.decoder_hidden_size + self.encoder_hidden_size
+                                                )).view(-1, self.T - 1)) # batch_size * T - 1, row sum up to 1
+            # Eqn. 14: compute context vector
+            context = torch.bmm(x.unsqueeze(1), input_encoded)[:, 0, :] # batch_size * encoder_hidden_size
+            if t < self.T - 1:
+                # Eqn. 15
+                y_tilde = self.fc(torch.cat((context, y_history[:, t].unsqueeze(1)), dim = 1)) # batch_size * 1
+                # Eqn. 16: LSTM
+                self.lstm_layer.flatten_parameters()
+                _, lstm_output = self.lstm_layer(y_tilde.unsqueeze(0), (hidden, cell))
+                hidden = lstm_output[0] # 1 * batch_size * decoder_hidden_size
+                cell = lstm_output[1] # 1 * batch_size * decoder_hidden_size
+        # Eqn. 22: final output
+        y_pred = self.fc_final(torch.cat((hidden[0], context), dim = 1))
+        # self.logger.info("hidden %s context %s y_pred: %s", hidden[0][0][:10], context[0][:10], y_pred[:10])
+        return y_pred
+
+    def init_hidden(self, x):
+        return Variable(x.data.new(1, x.size(0), self.decoder_hidden_size).zero_())
 
 
-def load_sp500(input_size, num_steps, k=None, target_symbol=None, test_ratio=0.05):
-    if target_symbol is not None:
-        return [
-            StockDataSet(
-                target_symbol,
-                input_size=input_size,
-                num_steps=num_steps,
-                test_ratio=test_ratio)
-        ]
+# In[ ]:
 
-    # Load metadata of s & p 500 stocks
-    info = pd.read_csv("data/constituents-financials.csv")
-    info = info.rename(columns={col: col.lower().replace(' ', '_') for col in info.columns})
-    info['file_exists'] = info['symbol'].map(lambda x: os.path.exists("data/{}.csv".format(x)))
-    print info['file_exists'].value_counts().to_dict()
+# Train the model
+class da_rnn:
+    def __init__(self, file_data, logger, encoder_hidden_size = 64, decoder_hidden_size = 64, T = 10,
+                 learning_rate = 0.01, batch_size = 128, parallel = True, debug = False):
+        self.T = T
+        dat = pd.read_csv(file_data, nrows = 100 if debug else None)
+        self.logger = logger
+        self.logger.info("Shape of data: %s.\nMissing in data: %s.", dat.shape, dat.isnull().sum().sum())
 
-    info = info[info['file_exists'] == True].reset_index(drop=True)
-    info = info.sort('market_cap', ascending=False).reset_index(drop=True)
+        self.X = dat.loc[:, [x for x in dat.columns.tolist() if x != 'NDX']].as_matrix()
+        self.y = np.array(dat.NDX)
+        self.batch_size = batch_size
 
-    if k is not None:
-        info = info.head(k)
+        self.encoder = encoder(input_size = self.X.shape[1], hidden_size = encoder_hidden_size, T = T,
+                              logger = logger).cuda()
+        self.decoder = decoder(encoder_hidden_size = encoder_hidden_size,
+                               decoder_hidden_size = decoder_hidden_size,
+                               T = T, logger = logger).cuda()
 
-    print "Head of S&P 500 info:\n", info.head()
+        if parallel:
+            self.encoder = nn.DataParallel(self.encoder)
+            self.decoder = nn.DataParallel(self.decoder)
 
-    # Generate embedding meta file
-    info[['symbol', 'sector']].to_csv(os.path.join("logs/metadata.tsv"), sep='\t', index=False)
+        self.encoder_optimizer = optim.Adam(params = itertools.ifilter(lambda p: p.requires_grad, self.encoder.parameters()),
+                                           lr = learning_rate)
+        self.decoder_optimizer = optim.Adam(params = itertools.ifilter(lambda p: p.requires_grad, self.decoder.parameters()),
+                                           lr = learning_rate)
+        # self.learning_rate = learning_rate
 
-    return [
-        StockDataSet(row['symbol'],
-                     input_size=input_size,
-                     num_steps=num_steps,
-                     test_ratio=0.05)
-        for _, row in info.iterrows()]
+        self.train_size = int(self.X.shape[0] * 0.7)
+        self.y = self.y - np.mean(self.y[:self.train_size]) # Question: why Adam requires data to be normalized?
+        self.logger.info("Training size: %d.", self.train_size)
+
+    def train(self, n_epochs = 10):
+        iter_per_epoch = int(np.ceil(self.train_size * 1. / self.batch_size))
+        logger.info("Iterations per epoch: %3.3f ~ %d.", self.train_size * 1. / self.batch_size, iter_per_epoch)
+        self.iter_losses = np.zeros(n_epochs * iter_per_epoch)
+        self.epoch_losses = np.zeros(n_epochs)
+
+        self.loss_func = nn.MSELoss()
+
+        n_iter = 0
+
+        learning_rate = 1.
+
+        for i in range(n_epochs):
+            perm_idx = np.random.permutation(self.train_size - self.T)
+            j = 0
+            while j < self.train_size:
+                batch_idx = perm_idx[j:(j + self.batch_size)]
+                X = np.zeros((len(batch_idx), self.T - 1, self.X.shape[1]))
+                y_history = np.zeros((len(batch_idx), self.T - 1))
+                y_target = self.y[batch_idx + self.T]
+
+                for k in range(len(batch_idx)):
+                    X[k, :, :] = self.X[batch_idx[k] : (batch_idx[k] + self.T - 1), :]
+                    y_history[k, :] = self.y[batch_idx[k] : (batch_idx[k] + self.T - 1)]
+
+                loss = self.train_iteration(X, y_history, y_target)
+                self.iter_losses[i * iter_per_epoch + j / self.batch_size] = loss
+                #if (j / self.batch_size) % 50 == 0:
+                #    self.logger.info("Epoch %d, Batch %d: loss = %3.3f.", i, j / self.batch_size, loss)
+                j += self.batch_size
+                n_iter += 1
+
+                if n_iter % 10000 == 0 and n_iter > 0:
+                    for param_group in self.encoder_optimizer.param_groups:
+                        param_group['lr'] = param_group['lr'] * 0.9
+                    for param_group in self.decoder_optimizer.param_groups:
+                        param_group['lr'] = param_group['lr'] * 0.9
+                '''
+                if learning_rate > self.learning_rate:
+                    for param_group in self.encoder_optimizer.param_groups:
+                        param_group['lr'] = param_group['lr'] * .9
+                    for param_group in self.decoder_optimizer.param_groups:
+                        param_group['lr'] = param_group['lr'] * .9
+                    learning_rate *= .9
+                '''
 
 
-def main(_):
-    pp.pprint(flags.FLAGS.__flags)
+            self.epoch_losses[i] = np.mean(self.iter_losses[range(i * iter_per_epoch, (i + 1) * iter_per_epoch)])
+            if i % 10 == 0:
+                self.logger.info("Epoch %d, loss: %3.3f.", i, self.epoch_losses[i])
 
-    # gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.333)
-    run_config = tf.ConfigProto()
-    run_config.gpu_options.allow_growth = True
+            if i % 10 == 0:
+                y_train_pred = self.predict(on_train = True)
+                y_test_pred = self.predict(on_train = False)
+                y_pred = np.concatenate((y_train_pred, y_test_pred))
+                plt.figure()
+                plt.plot(range(1, 1 + len(self.y)), self.y, label = "True")
+                plt.plot(range(self.T , len(y_train_pred) + self.T), y_train_pred, label = 'Predicted - Train')
+                plt.plot(range(self.T + len(y_train_pred) , len(self.y) + 1), y_test_pred, label = 'Predicted - Test')
+                plt.legend(loc = 'upper left')
+                plt.show()
 
-    with tf.Session(config=run_config) as sess:
-        rnn_model = LstmRNN(
-            sess,
-            FLAGS.stock_count,
-            lstm_size=FLAGS.lstm_size,
-            num_layers=FLAGS.num_layers,
-            num_steps=FLAGS.num_steps,
-            input_size=FLAGS.input_size,
-            keep_prob=FLAGS.keep_prob,
-            embed_size=FLAGS.embed_size,
-        )
+    def train_iteration(self, X, y_history, y_target):
+        self.encoder_optimizer.zero_grad()
+        self.decoder_optimizer.zero_grad()
 
-        show_all_variables()
+        input_weighted, input_encoded = self.encoder(Variable(torch.from_numpy(X).type(torch.FloatTensor).cuda()))
+        y_pred = self.decoder(input_encoded, Variable(torch.from_numpy(y_history).type(torch.FloatTensor).cuda()))
 
-        stock_data_list = load_sp500(
-            FLAGS.input_size,
-            FLAGS.num_steps,
-            k=FLAGS.stock_count,
-            target_symbol=FLAGS.stock_symbol,
-        )
+        y_true = Variable(torch.from_numpy(y_target).type(torch.FloatTensor).cuda())
+        loss = self.loss_func(y_pred, y_true)
+        loss.backward()
 
-        if FLAGS.train:
-            rnn_model.train(stock_data_list, FLAGS)
+        self.encoder_optimizer.step()
+        self.decoder_optimizer.step()
+
+        # if loss.data[0] < 10:
+        #     self.logger.info("MSE: %s, loss: %s.", loss.data, (y_pred[:, 0] - y_true).pow(2).mean())
+
+        return loss.data[0]
+
+    def predict(self, on_train = False):
+        if on_train:
+            y_pred = np.zeros(self.train_size - self.T + 1)
         else:
-            if not rnn_model.load()[0]:
-                raise Exception("[!] Train a model first, then run test mode")
+            y_pred = np.zeros(self.X.shape[0] - self.train_size)
+
+        i = 0
+        while i < len(y_pred):
+            batch_idx = np.array(range(len(y_pred)))[i : (i + self.batch_size)]
+            X = np.zeros((len(batch_idx), self.T - 1, self.X.shape[1]))
+            y_history = np.zeros((len(batch_idx), self.T - 1))
+            for j in range(len(batch_idx)):
+                if on_train:
+                    X[j, :, :] = self.X[range(batch_idx[j], batch_idx[j] + self.T - 1), :]
+                    y_history[j, :] = self.y[range(batch_idx[j],  batch_idx[j]+ self.T - 1)]
+                else:
+                    X[j, :, :] = self.X[range(batch_idx[j] + self.train_size - self.T, batch_idx[j] + self.train_size - 1), :]
+                    y_history[j, :] = self.y[range(batch_idx[j] + self.train_size - self.T,  batch_idx[j]+ self.train_size - 1)]
+
+            y_history = Variable(torch.from_numpy(y_history).type(torch.FloatTensor).cuda())
+            _, input_encoded = self.encoder(Variable(torch.from_numpy(X).type(torch.FloatTensor).cuda()))
+            y_pred[i:(i + self.batch_size)] = self.decoder(input_encoded, y_history).cpu().data.numpy()[:, 0]
+            i += self.batch_size
+        return y_pred
 
 
-if __name__ == '__main__':
-    tf.app.run()
+
+# In[ ]:
+
+io_dir = '~/nasdaq'
+
+model = da_rnn(file_data = '{}/data/nasdaq100_padding.csv'.format(io_dir), logger = logger, parallel = False,
+              learning_rate = .001)
+
+model.train(n_epochs = 500)
+
+y_pred = model.predict()
+
+plt.figure()
+plt.semilogy(range(len(model.iter_losses)), model.iter_losses)
+plt.show()
+
+plt.figure()
+plt.semilogy(range(len(model.epoch_losses)), model.epoch_losses)
+plt.show()
+
+plt.figure()
+plt.plot(y_pred, label = 'Predicted')
+plt.plot(model.y[model.train_size:], label = "True")
+plt.legend(loc = 'upper left')
+plt.show()
