@@ -22,32 +22,18 @@ class Translator(object):
         self.tgt_dict = checkpoint['dicts']['tgt']
         self.align = self.src_dict.align(self.tgt_dict)
         self.src_feature_dicts = checkpoint['dicts'].get('src_features', None)
-        self._type = model_opt.encoder_type \
-            if "encoder_type" in model_opt else "text"
+        self._type = model_opt.encoder_type if "encoder_type" in model_opt else "text"
+        self.copy_attn = model_opt.copy_attn if "copy_attn" in model_opt else "std"
+        self.predict_fertility = model_opt.predict_fertility if "predict_fertility" in model_opt else False
 
-        self.copy_attn = model_opt.copy_attn \
-            if "copy_attn" in model_opt else "std"
-
-        self.predict_fertility = model_opt.predict_fertility \
-            if "predict_fertility" in model_opt else False
-
-        if opt.attn_transform is not None:
-            model_opt.attn_transform = opt.attn_transform
-        if opt.fertility is not None:
-            model_opt.fertility = opt.fertility
-        if opt.guided_fertility is not None:
-            model_opt.guided_fertility = opt.guided_fertility
-        if opt.guided_fertility_source_file is not None:
-            model_opt.guided_fertility_source_file = opt.guided_fertility_source_file
+        if opt.attn_transform is not None: model_opt.attn_transform = opt.attn_transform
+        if opt.fertility is not None: model_opt.fertility = opt.fertility
+        if opt.guided_fertility is not None: model_opt.guided_fertility = opt.guided_fertility
+        if opt.guided_fertility_source_file is not None: model_opt.guided_fertility_source_file = opt.guided_fertility_source_file
 
         print(model_opt)
         #import pdb; pdb.set_trace()
-        if self._type == "text":
-            encoder = onmt.Models.Encoder(model_opt, self.src_dict,
-                                          self.src_feature_dicts)
-        elif self._type == "img":
-            encoder = onmt.modules.ImageEncoder(model_opt)
-
+        encoder = onmt.Models.Encoder(model_opt, self.src_dict, self.src_feature_dicts)
         decoder = onmt.Models.Decoder(model_opt, self.tgt_dict)
         model = onmt.Models.NMTModel(encoder, decoder)
 

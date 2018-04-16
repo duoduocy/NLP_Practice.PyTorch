@@ -15,7 +15,7 @@ import pdb
 import evaluation
 
 class Embeddings(nn.Module):
-    def __init__(self, opt, dicts, feature_dicts=None):
+    def __init__(self, opt, dicts, feature_dicts=[]):
         super(Embeddings, self).__init__()
 
         self.positional_encoding = opt.position_encoding
@@ -26,22 +26,10 @@ class Embeddings(nn.Module):
         self.word_lut = nn.Embedding(dicts.size(), opt.word_vec_size, padding_idx=onmt.Constants.PAD)  # Word embeddings.
         self.dropout = nn.Dropout(p=opt.dropout)
         self.feature_dicts = feature_dicts
-        # Feature embeddings.
-        if self.feature_dicts is not None:
-            self.feature_luts = nn.ModuleList([
-                nn.Embedding(feature_dict.size(),
-                             opt.feature_vec_size,
-                             padding_idx=onmt.Constants.PAD)
-                for feature_dict in feature_dicts])
-
-            # MLP on features and words.
-            self.activation = nn.ReLU()
-            self.linear = onmt.modules.BottleLinear(
-                opt.word_vec_size +
-                len(feature_dicts) * opt.feature_vec_size,
-                opt.word_vec_size)
-        else:
-            self.feature_luts = nn.ModuleList([])
+        # MLP on features and words.
+        self.activation = nn.ReLU()
+        if feature_dicts is not None:
+            self.linear = onmt.modules.BottleLinear(opt.word_vec_size, opt.word_vec_size)
 
     def make_positional_encodings(self, dim, max_len):
         pe = torch.FloatTensor(max_len, 1, dim).fill_(0)
@@ -65,15 +53,8 @@ class Embeddings(nn.Module):
             emb (FloatTensor): len x batch x input_size
         """
         word = self.word_lut(src_input[:, :, 0])
-        emb = word
-        if self.feature_dicts is not None:
-            features = [feature_lut(src_input[:, :, j + 1])
-                        for j, feature_lut in enumerate(self.feature_luts)]
-
-            # Apply one MLP layer.
-            emb = self.activation(
-                self.linear(torch.cat([word] + features, -1)))
-
+        # Apply one MLP layer.
+        emb = self.activation(self.linear(torch.cat([word], -1))) if self.feature_dicts is not None else word
         if self.positional_encoding:
             emb = emb + Variable(self.pe[:emb.size(0), :1, :emb.size(2)]
                                  .expand_as(emb))
@@ -100,7 +81,7 @@ class Encoder(nn.Module):
         assert opt.rnn_size % self.num_directions == 0
         self.hidden_size = opt.rnn_size // self.num_directions  # Size of the encoder RNN.
         input_size = opt.word_vec_size
-        self.embeddings = Embeddings(opt, dicts, feature_dicts)
+        self.embeddings = Embeddings(opt, dicts)
         self.encoder_layer = opt.encoder_layer # The Encoder RNN.
 
         self.rnn = getattr(nn, opt.rnn_type)(input_size, self.hidden_size, num_layers=opt.layers, dropout=opt.dropout, bidirectional=opt.brnn)
