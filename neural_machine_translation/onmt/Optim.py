@@ -13,8 +13,7 @@ class Optim(object):
         elif self.method == 'adadelta':
             self.optimizer = optim.Adadelta(self.params, lr=self.lr)
         elif self.method == 'adam':
-            self.optimizer = optim.Adam(self.params, lr=self.lr,
-                                        betas=self.betas, eps=1e-9)
+            self.optimizer = optim.Adam(self.params, lr=self.lr, betas=self.betas, eps=1e-9)
         else:
             raise RuntimeError("Invalid optim method: " + self.method)
 
@@ -43,11 +42,7 @@ class Optim(object):
 
         # Decay method used in tensor2tensor.
         if self.opt.__dict__.get("decay_method", "") == "noam":
-            self._setRate(
-                self.opt.learning_rate *
-                (self.opt.rnn_size ** (-0.5) *
-                 min(self._step ** (-0.5),
-                     self._step * self.opt.warmup_steps**(-1.5))))
+            self._setRate(self.opt.learning_rate * (self.opt.rnn_size ** (-0.5) * min(self._step ** (-0.5), self._step * self.opt.warmup_steps**(-1.5))))
 
         if self.max_grad_norm:
             clip_grad_norm(self.params, self.max_grad_norm)
