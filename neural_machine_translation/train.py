@@ -4,6 +4,7 @@ import h5py
 import onmt
 import onmt.Markdown
 import onmt.Models
+import onmt.Loss
 import onmt.modules
 import argparse
 import torch
@@ -17,10 +18,10 @@ parser = argparse.ArgumentParser(description='train.py')
 onmt.Markdown.add_md_help_argument(parser)
 
 # Data options
-parser.add_argument('-dict', default='data/aic_mt/nmt_t2t_data_all/nmt_all_0303.dicts.pt')
+parser.add_argument('-dict', default='data/aic_mt/nmt_t2t_data_all/nmt_all_0303_bt.dicts.pt')
 parser.add_argument('-data_type', type=str, default='h5', help='File format for the preprocessed data')
-parser.add_argument('-data', default='data/aic_mt/nmt_t2t_data_all/nmt_all_0303.train.h5', help='Path to the *-train.pt file from preprocess.py')
-parser.add_argument('-data_alignment', default='data/aic_mt/nmt_t2t_data_all/nmt_all_0303.alignments.pt')
+parser.add_argument('-data', default='data/aic_mt/nmt_t2t_data_all/nmt_all_0303_bt.train.h5', help='Path to the *-train.pt file from preprocess.py')
+parser.add_argument('-data_alignment', default='data/aic_mt/nmt_t2t_data_all/nmt_all_0303_bt.alignments.pt')
 parser.add_argument('-save_model', default='model', help="Model filename (the model will be saved as <save_model>_epochN_PPL.pt where PPL is the validation perplexity")
 parser.add_argument('-train_from_state_dict', default='', type=str, help="If training from a checkpoint then this is the path to the pretrained model's state_dict.")
 parser.add_argument('-train_from', default='', type=str, help="If training from a checkpoint then this is the path to the pretrained model.")
@@ -37,7 +38,7 @@ parser.add_argument('-rnn_type', type=str, default='LSTM', choices=['LSTM', 'GRU
 #                     help="Add residual connections between RNN layers.")
 parser.add_argument('-brnn', action='store_true', default=True, help='Use a bidirectional encoder')
 parser.add_argument('-brnn_merge', default='concat', help="Merge action for the bidirectional hidden states: [concat|sum]")
-parser.add_argument('-copy_attn', action="store_true", help='Train copy attention layer.')
+parser.add_argument('-copy_attn', action="store_true", default=True, help='Train copy attention layer.')
 parser.add_argument('-coverage_attn', action="store_true", help='Train a coverage attention layer.')
 
 parser.add_argument('-exhaustion_loss', action="store_true", help='Train a loss to exhaust fertility')
