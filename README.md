@@ -1,7 +1,7 @@
 
 # Deep Learning for Natural Language Processing</br>
 
-## Code lists ( Update Time: 2018-05-31 17:08:32)</br>
+## Code lists ( Update Time: 2018-05-31 17:11:00)</br>
 <table border=3 style=width:100%><caption><em><center></center></em></caption><th>Name</th><th>Descriptions</th><th>Forks count</th><th>Network count</th><th>Created Time</th><th>Pushed Time</th><th>Updated Time</th> 
 
 
@@ -15,7 +15,7 @@
 
 
 
-## [About me](jxgu.cc)
+## [About me](http://jxgu.cc)
 
 
 If you have any interest in deep learning and natural language processing, you can visit our open source.

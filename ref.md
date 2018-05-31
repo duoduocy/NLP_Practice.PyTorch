@@ -1,7 +1,7 @@
 
 
 
-## [About me](jxgu.cc)
+## [About me](http://jxgu.cc)
 
 
 If you have any interest in deep learning and natural language processing, you can visit our open source.
