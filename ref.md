@@ -4,7 +4,7 @@
 ## [About me](http://jxgu.cc)
 
 
-If you have any interest in deep learning and natural language processing, you can visit our open source.
+If you have any interest in deep learning and natural language processing, you can visit the course site.
 ![](http://static.mooc.ai/files/course/2018/01-26/1126499ce223574244.jpg)
 
 
