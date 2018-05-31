@@ -1,4 +1,5 @@
-# Deep Learning for Natural Language Processing</br>## Code lists ( Update Time: 2018-05-31 16:50:18)</br><table border=3 style=width:100%><caption><em><center></center></em></caption><th>Name</th><th>Descriptions</th><th>Forks count</th><th>Network count</th><th>Created Time</th><th>Pushed Time</th><th>Updated Time</th>
+# Deep Learning for Natural Language Processing</br>
+## Code lists ( Update Time: 2018-05-31 16:52:36)</br><table border=3 style=width:100%><caption><em><center></center></em></caption><th>Name</th><th>Descriptions</th><th>Forks count</th><th>Network count</th><th>Created Time</th><th>Pushed Time</th><th>Updated Time</th>
 <tr><td><a href=https://github.com/gujiuxiang/Question_Answering.pytorch.git>Question_Answering.pytorch</a></td><td></td><td>0</td><td>0</td><td>2018-05-31 07:47:53</td><td>2018-05-31 07:48:40</td><td>2018-05-31 07:56:44</td></tr>
 <tr><td><a href=https://github.com/gujiuxiang/Deep_Trader.pytorch.git>Deep_Trader.pytorch</a></td><td></td><td>0</td><td>0</td><td>2018-05-31 07:44:59</td><td>2018-05-31 07:46:00</td><td>2018-05-31 07:46:01</td></tr>
 <tr><td><a href=https://github.com/gujiuxiang/Text_Classification.pytorch.git>Text_Classification.pytorch</a></td><td></td><td>0</td><td>0</td><td>2018-05-31 07:37:32</td><td>2018-05-31 07:39:53</td><td>2018-05-31 07:39:54</td></tr>
