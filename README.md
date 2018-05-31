@@ -1,15 +1,15 @@
 
 # Deep Learning for Natural Language Processing</br>
 
-## Code lists ( Update Time: 2018-05-31 22:47:28)</br>
+## Code lists ( Update Time: 2018-06-01 01:22:10)</br>
 <table border=3 style=width:100%><caption><em><center></center></em></caption><th>Name</th><th>Descriptions</th><th>Forks count</th><th>Network count</th><th>Created Time</th><th>Pushed Time</th><th>Updated Time</th> 
 
 
 <tr><td><a href=https://github.com/gujiuxiang/Question_Answering.pytorch.git>Question_Answering.pytorch</a></td><td>Question Answering, Visual Question Answering, and Dialogue</td><td>0</td><td>0</td><td>2018-05-31 07:47:53</td><td>2018-05-31 14:28:54</td><td>2018-05-31 14:28:55</td></tr>
 <tr><td><a href=https://github.com/gujiuxiang/Visual_Dialogue.pytorch.git>Visual_Dialogue.pytorch</a></td><td>Visual Dialog</td><td>0</td><td>0</td><td>2018-05-31 14:26:53</td><td>2018-05-31 14:28:24</td><td>2018-05-31 14:31:16</td></tr>
-<tr><td><a href=https://github.com/gujiuxiang/Dialogue.pytorch.git>Dialogue.pytorch</a></td><td></td><td>0</td><td>0</td><td>2018-05-31 14:26:23</td><td>2018-05-31 14:26:24</td><td>2018-05-31 14:26:25</td></tr>
+<tr><td><a href=https://github.com/gujiuxiang/Dialogue.pytorch.git>Dialogue.pytorch</a></td><td></td><td>0</td><td>0</td><td>2018-05-31 14:26:23</td><td>2018-05-31 14:54:58</td><td>2018-05-31 14:55:06</td></tr>
 <tr><td><a href=https://github.com/gujiuxiang/Visual_Question_Answering.pytorch.git>Visual_Question_Answering.pytorch</a></td><td>Visual Question Answering</td><td>0</td><td>0</td><td>2018-05-31 12:59:05</td><td>2018-05-31 13:27:34</td><td>2018-05-31 13:27:35</td></tr>
-<tr><td><a href=https://github.com/gujiuxiang/Deep_Trader.pytorch.git>Deep_Trader.pytorch</a></td><td> This project uses Reinforcement learning on stock market and agent tries to learn trading.</td><td>0</td><td>0</td><td>2018-05-31 07:44:59</td><td>2018-05-31 07:46:00</td><td>2018-05-31 08:58:07</td></tr>
+<tr><td><a href=https://github.com/gujiuxiang/Deep_Trader.pytorch.git>Deep_Trader.pytorch</a></td><td> This project uses Reinforcement learning on stock market and agent tries to learn trading.</td><td>0</td><td>0</td><td>2018-05-31 07:44:59</td><td>2018-05-31 17:14:13</td><td>2018-05-31 17:14:15</td></tr>
 <tr><td><a href=https://github.com/gujiuxiang/Text_Classification.pytorch.git>Text_Classification.pytorch</a></td><td>Text Classification</td><td>0</td><td>0</td><td>2018-05-31 07:37:32</td><td>2018-05-31 07:39:53</td><td>2018-05-31 08:58:31</td></tr>
 <tr><td><a href=https://github.com/gujiuxiang/Multimodal_Retrieval.pytorch.git>Multimodal_Retrieval.pytorch</a></td><td>Multi-Modal and Cross-Modal Retrieval</td><td>0</td><td>0</td><td>2018-05-31 07:34:08</td><td>2018-05-31 07:35:37</td><td>2018-05-31 08:59:02</td></tr>
 <tr><td><a href=https://github.com/gujiuxiang/Chinese_PoetryGen.pytorch.git>Chinese_PoetryGen.pytorch</a></td><td>Chinese Poetry Generation</td><td>0</td><td>0</td><td>2018-05-31 07:29:24</td><td>2018-05-31 07:32:30</td><td>2018-05-31 08:59:18</td></tr>
