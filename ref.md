@@ -5,7 +5,7 @@
 
 
 If you have any interest in deep learning and natural language processing, you can visit our open source.
-![](https://static.leiphone.com/uploads/new/article/740_740/201801/5a65986353910.jpg?imageMogr2/format/jpg/quality/90)
+![](http://static.mooc.ai/files/course/2018/01-26/1126499ce223574244.jpg)
 
 
 - [Gu, Jiuxiang, et al. "Recent advances in convolutional neural networks." Pattern Recognition (2017).](https://arxiv.org/pdf/1512.07108)
