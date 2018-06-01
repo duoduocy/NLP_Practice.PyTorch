@@ -1,20 +1,20 @@
 
 # Deep Learning for Natural Language Processing</br>
 
-## Code lists ( Update Time: 2018-06-01 12:10:18)</br>
+## Code lists ( Update Time: 2018-06-01 15:45:32)</br>
 <table border=3 style=width:100%><caption><em><center></center></em></caption><th>Name</th><th>Descriptions</th><th>Forks count</th><th>Network count</th><th>Created Time</th><th>Pushed Time</th><th>Updated Time</th> 
 
 
+<tr><td><a href=https://github.com/gujiuxiang/NMT.pytorch.git>NMT.pytorch</a></td><td>Neural machine translation based on PyTorch</td><td>0</td><td>0</td><td>2018-05-31 05:19:55</td><td>2018-05-31 06:09:30</td><td>2018-05-31 07:12:24</td></tr>
 <tr><td><a href=https://github.com/gujiuxiang/Question_Answering.pytorch.git>Question_Answering.pytorch</a></td><td>Question Answering, Visual Question Answering, and Dialogue</td><td>0</td><td>0</td><td>2018-05-31 07:47:53</td><td>2018-05-31 14:28:54</td><td>2018-05-31 14:28:55</td></tr>
-<tr><td><a href=https://github.com/gujiuxiang/Visual_Dialogue.pytorch.git>Visual_Dialogue.pytorch</a></td><td>Visual Dialog</td><td>0</td><td>0</td><td>2018-05-31 14:26:53</td><td>2018-05-31 14:28:24</td><td>2018-05-31 14:31:16</td></tr>
-<tr><td><a href=https://github.com/gujiuxiang/Dialogue.pytorch.git>Dialogue.pytorch</a></td><td></td><td>0</td><td>0</td><td>2018-05-31 14:26:23</td><td>2018-05-31 14:54:58</td><td>2018-05-31 14:55:06</td></tr>
-<tr><td><a href=https://github.com/gujiuxiang/Visual_Question_Answering.pytorch.git>Visual_Question_Answering.pytorch</a></td><td>Visual Question Answering</td><td>0</td><td>0</td><td>2018-05-31 12:59:05</td><td>2018-05-31 13:27:34</td><td>2018-05-31 13:27:35</td></tr>
-<tr><td><a href=https://github.com/gujiuxiang/Deep_Trader.pytorch.git>Deep_Trader.pytorch</a></td><td> This project uses Reinforcement learning on stock market and agent tries to learn trading.</td><td>0</td><td>0</td><td>2018-05-31 07:44:59</td><td>2018-05-31 17:14:13</td><td>2018-05-31 17:14:15</td></tr>
+<tr><td><a href=https://github.com/gujiuxiang/Visual_Question_Answering.pytorch.git>Visual_Question_Answering.pytorch</a></td><td>Visual Question Answering</td><td>0</td><td>0</td><td>2018-05-31 12:59:05</td><td>2018-05-31 13:27:34</td><td>2018-06-01 06:37:05</td></tr>
+<tr><td><a href=https://github.com/gujiuxiang/Dialogue.pytorch.git>Dialogue.pytorch</a></td><td>Dialog Generation</td><td>0</td><td>0</td><td>2018-05-31 14:26:23</td><td>2018-05-31 14:54:58</td><td>2018-06-01 06:24:19</td></tr>
+<tr><td><a href=https://github.com/gujiuxiang/Visual_Dialogue.pytorch.git>Visual_Dialogue.pytorch</a></td><td>Visual Dialog</td><td>0</td><td>0</td><td>2018-05-31 14:26:53</td><td>2018-05-31 14:28:24</td><td>2018-06-01 06:36:32</td></tr>
+<tr><td><a href=https://github.com/gujiuxiang/Deep_Trader.pytorch.git>Deep_Trader.pytorch</a></td><td> This project uses Reinforcement learning on stock market and agent tries to learn trading.</td><td>0</td><td>0</td><td>2018-05-31 07:44:59</td><td>2018-06-01 07:17:50</td><td>2018-06-01 07:18:00</td></tr>
 <tr><td><a href=https://github.com/gujiuxiang/Text_Classification.pytorch.git>Text_Classification.pytorch</a></td><td>Text Classification</td><td>0</td><td>0</td><td>2018-05-31 07:37:32</td><td>2018-05-31 07:39:53</td><td>2018-05-31 08:58:31</td></tr>
 <tr><td><a href=https://github.com/gujiuxiang/Multimodal_Retrieval.pytorch.git>Multimodal_Retrieval.pytorch</a></td><td>Multi-Modal and Cross-Modal Retrieval</td><td>0</td><td>0</td><td>2018-05-31 07:34:08</td><td>2018-05-31 07:35:37</td><td>2018-05-31 08:59:02</td></tr>
 <tr><td><a href=https://github.com/gujiuxiang/Chinese_PoetryGen.pytorch.git>Chinese_PoetryGen.pytorch</a></td><td>Chinese Poetry Generation</td><td>0</td><td>0</td><td>2018-05-31 07:29:24</td><td>2018-05-31 07:32:30</td><td>2018-05-31 08:59:18</td></tr>
-<tr><td><a href=https://github.com/gujiuxiang/NMT.pytorch.git>NMT.pytorch</a></td><td>Neural machine translation based on PyTorch</td><td>0</td><td>0</td><td>2018-05-31 05:19:55</td><td>2018-05-31 06:09:30</td><td>2018-05-31 07:12:24</td></tr>
-<tr><td><a href=https://github.com/gujiuxiang/Video_Captioning.pytorch.git>Video_Captioning.pytorch</a></td><td></td><td>0</td><td>0</td><td>2018-05-31 14:35:33</td><td>2018-05-31 14:40:00</td><td>2018-06-01 03:39:33</td></tr>
+<tr><td><a href=https://github.com/gujiuxiang/Video_Captioning.pytorch.git>Video_Captioning.pytorch</a></td><td>Video Captioning</td><td>0</td><td>0</td><td>2018-05-31 14:35:33</td><td>2018-05-31 14:40:00</td><td>2018-06-01 06:23:53</td></tr>
 <tr><td><a href=https://github.com/gujiuxiang/Stack-Captioning.git>Stack-Captioning</a></td><td>Stack-Captioning: Coarse-to-Fine Learning for Image Captioning</td><td>1</td><td>1</td><td>2017-12-29 12:53:02</td><td>2018-04-18 07:30:24</td><td>2018-05-31 08:11:09</td></tr>
 </table>
 
